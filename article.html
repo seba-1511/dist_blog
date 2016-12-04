@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+        <title>An Overview of Distributed Deep Learning - Seb Arnold</title>
+
+        <!-- Bootstrap -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootswatch/3.3.7/sandstone/bootstrap.min.css" />
+
+        <!--Prism for code high-lighting-->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.5.1/themes/prism.min.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.5.1/themes/prism-solarizedlight.css" / >
+
+        <!--KaTeX for fast embedded math-->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.6.0/katex.min.css">
+
+        <!--Pseudocode.js-->
+        <link rel="stylesheet" href="https://cdn.rawgit.com/tatetian/pseudocode.js/master/static/pseudocode.css">
+
+
+        <style type="text/css" media="all">
+        /* Space out content a bit */
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+
+        p {
+            font-size: 16px;
+            text-align: justify;
+        }
+
+        /* Everything but the jumbotron gets side spacing for mobile first views */
+        .header,
+        .footer {
+            padding-right: 15px;
+            padding-left: 15px;
+        }
+
+        /* Custom page header */
+        .header {
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+        /* Make the masthead heading the same height as the navigation */
+        .header h3 {
+            margin-top: 0;
+            margin-bottom: 0;
+            line-height: 40px;
+        }
+
+        img {
+            max-width: 100%;
+        }
+
+        /* Custom page footer */
+        .footer {
+            padding-top: 19px;
+            color: #777;
+            border-top: 1px solid #e5e5e5;
+        }
+
+        /* Customize container */
+        @media (min-width: 768px) {
+            .container {
+                                max-width: 730px;
+                            }
+        }
+        .container-narrow > hr {
+            margin: 30px 0;
+        }
+
+        /* Responsive: Portrait tablets and up */
+        @media screen and (min-width: 768px) {
+            /* Remove the padding we set earlier */
+            .header,
+            .marketing,
+            .footer {
+                padding-right: 0;
+                padding-left: 0;
+            }
+            /* Space out the masthead */
+            .header {
+                margin-bottom: 30px;
+            }
+            /* Remove the bottom border on the jumbotron for visual effect */
+            .jumbotron {
+                border-bottom: 0;
+            }
+        }
+
+        .well {
+            border: 1px solid #767676;
+            width: 157px;
+            max-width: 157px;
+        }
+        .well a {
+            color:#767676;
+            margin-bottom:5px;
+        }
+        .well ul {
+            list-style: none;
+            margin: 0px;
+            padding-left: 10px;
+        }
+        </style>
+
+        <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+        <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+        <!--[if lt IE 9]>
+            <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+            <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+        <![endif]-->
+
+
+        <!--Plotly.js-->
+        <!--Needs to be imported before body, else figs won't load.-->
+        <script src="https://cdn.plot.ly/plotly-1.2.0.min.js"></script>
+
+    </head>
+    <body>
+        <div class="container">
+            <div class="header clearfix">
+                <!--<nav>-->
+                <!--<ul class="nav nav-pills pull-right">-->
+                <!--<li role="presentation" class="active"><a href="#">Home</a></li>-->
+                <!--<li role="presentation"><a href="#">About</a></li>-->
+                <!--<li role="presentation"><a href="#">Contact</a></li>-->
+                <!--</ul>-->
+                <!--</nav>-->
+
+                                <h1 class="text-center">An Overview of Distributed Deep Learning</h1>
+                <h4 class="text-sm text-muted text-center"> by Seb Arnold,  <span style="font-weight:normal;"><i>November 23, 2016</i></span></h4>
+                            </div>
+
+                        <h1 id="introduction">Introduction</h1>
+            <p>This blog post introduces the fundamentals of distributed deep learning and presents some real-world applications. With the democratization of deep learning methods in the last decade, large - and small ! - companies have invested a lot of efforts into distributing the training procedure of neural networks. Their hope: drastically reduce the time to train large models on even larger datasets. Unfortunately while every commerical product takes advantage of these techniques, it is still difficult for practitioners and researchers to use them in their everyday projects. This article aims to change that by providing a theoretical and practical overview. </p>
+            <p>Last year, I was lucky to intern at Nervana Systems where I was able to expand their distributed effort. During this 1 year internship, I familiarized myself with a lot of aspects of distributed deep learning and was able to work on topics ranging from implementing efficient GPU-GPU Allreduce routines <span class="citation">[<a href="#ref-opti-mpich">1</a>]</span> to replicating Deepind's Gorila <span class="citation">[<a href="#ref-gorila">2</a>]</span>. I found this topic so fascinating that I am now researching novel techniques for distributed optimization with Prof. <a href="http://dornsife.usc.edu/labs/msl/faculty-and-staff/">Chunming Wang</a>, and applying them to robotic control <span class="citation">[<a href="#ref-comp-trpo-cem">3</a>]</span> with Prof. <a href="http://valerolab.org/about/">Francisco Valero-Cuevas</a>.</p>
+            <h1 id="the-problem">The Problem</h1>
+            <!--
+                * Introduce formalism and SGD
+                * Variants of SGD
+                * Tricky points
+                    * Implementation
+                    * FC, Convs, and RNNs
+                    * Benchmarks
+            -->
+            <h2 id="formulation-and-stochastic-gradient-descent">Formulation and Stochastic Gradient Descent</h2>
+            <p>Let's first define the problem that we would like to solve. We are trying to train a neural network to solve a supervised task. This task could be anything from classifying images to playing Atari games or predicting the next word of a sentence. To do that, we'll rely on an algorithm - and its variants - from the mathematical optimization literature: <strong>stochastic gradient descent</strong>. Stochastic gradient descent (SGD) works by computing the gradient direction of the loss function we are trying to minimize with respect to the current parameters of the model. Once we know the gradient direction - aka the direction of greatest increase - we'll take a step in the opposite direction since we are trying to minimize the final error. </p>
+            <p>More formally, we can represent our dataset as a distribution <span class="math inline">\(\chi\)</span> from which we sample <span class="math inline">\(N\)</span> tuples of inputs and labels <span class="math inline">\((x_i, y_i) \sim \chi\)</span>. Then, given a loss function <span class="math inline">\(\mathcal{L}\)</span> (some common choices include the <a href="https://en.wikipedia.org/wiki/Mean_squared_error">mean square error</a>, the <a href="https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence">KL divergence</a>, or the <a href="">negative log-likelihood</a>) we want to find the optimal set of weights <span class="math inline">\(W_{opt}\)</span> of our deep model <span class="math inline">\(F\)</span>. That is,</p>
+            <p><span class="math display">\[W_{opt} = \arg \min_{W} \mathbb{E}_{(x, y) \sim \chi}[L(y, F(x; W))] \]</span></p>
+            <div style="margin-top:20px;margin-bottom:20px;"><p><b><u>Note</u>:</b><br/>
+            In the above formulation we are not separating the dataset in train, validation, and test sets. However you need to do it !\newline
+            
+             </p></div>
+            <p>In this case, SGD will iteratively update the weights <span class="math inline">\(W_t\)</span> at timestep <span class="math inline">\(t\)</span> with <span class="math inline">\(W_{t+1} = W_t - \alpha \cdot \nabla_{W_t} \mathcal{L}(y_i, F(x_i; W_t))\)</span>. Here, <span class="math inline">\(\alpha\)</span> is the learning rate and can be interpreted as the size of the step we are taking in the direction of the negative gradient. As we will see later there are algorithms that try to adaptively set the learning rate, but generally speaking it needs to be chosen by the human experimenter. </p>
+            <p>One important thing to note is that in practice the gradient is evaluated over a set of samples called the minibatch. This is done by averaging the gradient of the loss for each sample in the minibatch. Taking the gradient over the minibatch helps in two aspects.</p>
+            <ol style="list-style-type: decimal">
+            <li>It can be efficiently computed by <a href="https://goparallel.sourceforge.net/vectorization-feeds-need-speed/">vectorizing</a> the computations.</li>
+            <li>It allows us to obtain a better approximation of the <em>true</em> gradient of <span class="math inline">\(\mathcal{L}(y, F(x; W))\)</span> over <span class="math inline">\(\chi\)</span>, and thus makes us converge faster.</li>
+            </ol>
+            <p>However, a very large batch size will simply result in computational overhead since your gradient will not significantly improve. Therefore, it is usual to keep it between 32 and 1024 samples, even when our dataset contains millions of examples.</p>
+            <h2 id="variants-of-sgd">Variants of SGD</h2>
+            <p>As we will now see, several variants of the gradient descent algorithm exist. They all try to improve the quality of the gradient by including more or less sophisticated heuristics. For a more in depth treatment, I would recommend <a href="http://sebastianruder.com/optimizing-gradient-descent/">Sebastian Ruder's excellent blog post</a> and the <a href="http://cs231n.github.io/neural-networks-3/">CS231n web page</a> on optimization.</p>
+            <h3 id="adding-momentum">Adding Momentum</h3>
+            <p>Momentum techniques simply keep track of a weighted average of previous updates, and apply it to the current one. This is akin to the momentum gained by a ball rolling downhill. In the following formulas, <span class="math inline">\(\mu\)</span> is the momentum parameter - how much previous updates we want to include in the current one.</p>
+            <h4 id="momentum">Momentum</h4>
+            <p><span class="math display">\[ v_{t+1} = \mu \cdot v_t + \alpha \cdot \nabla \mathcal{L}\]</span> <span class="math display">\[ W_{t+1} = W_t - v_{t+1} \]</span></p>
+            <h4 id="nesterov-momentum-or-accelerated-gradient-nesterov">Nesterov Momentum or Accelerated Gradient <span class="citation">[<a href="#ref-nesterov">4</a>]</span></h4>
+            <p><span class="math display">\[ v_{t+1} = \mu \cdot (\mu \cdot v + \alpha \cdot \nabla \mathcal{L}) + \alpha \cdot \nabla \mathcal{L} \]</span> <span class="math display">\[ W_{t+1} = W_t - v_{t+1} \]</span></p>
+            <p>Nesterov's accelerated gradient adds <em>momentum to the momentum</em> in an attempt to look ahead for what is coming.</p>
+            <h3 id="adaptive-learning-rates">Adaptive Learning Rates</h3>
+            <p>Finding good learning rates can be an expensive process, and a skill often deemed closer to art or dark magic. The following techniques try to alleviate this problem by automatically setting the learning rate, sometimes on a per-parameter basis. The following descriptions are inspired by <a href="http://neon.nervanasys.com/index.html/optimizers.html">Nervana's implementation</a>.</p>
+            <div style="margin-top:20px;margin-bottom:20px;"><p><b><u>Note</u>:</b><br/>
+            In the following formulas, $\epsilon$ is a constant to ensure numerical stability, and $\mu$ is the decay constant of the algorithm, how fast we decrease the learning rate as we converge.
+            
+             </p></div>
+            <h4 id="adagrad-adagrad">Adagrad <span class="citation">[<a href="#ref-adagrad">5</a>]</span></h4>
+            <p><span class="math display">\[ s_{t+1} = s_t + (\nabla \mathcal{L})^2 \]</span> <span class="math display">\[ W_{t+1} = W_t - \frac{\alpha \cdot \nabla \mathcal{L}}{\sqrt{s_{t+1} + \epsilon}}\]</span></p>
+            <h4 id="rmsprop-rmsprop">RMSProp <span class="citation">[<a href="#ref-rmsprop">6</a>]</span></h4>
+            <p><span class="math display">\[ s_{t+1} = \mu \cdot s_t + (1 - \mu) \cdot (\nabla \mathcal{L})^2 \]</span> <span class="math display">\[ W_{t+1} = W_t - \frac{\alpha \cdot \nabla \mathcal{L}}{\sqrt{s_{t+1} + \epsilon} + \epsilon}\]</span></p>
+            <h4 id="adadelta-adadelta">Adadelta <span class="citation">[<a href="#ref-adadelta">7</a>]</span></h4>
+            <p><span class="math display">\[ \lambda_{t+1} = \lambda_t \cdot \mu + (1 - \mu) \cdot (\nabla \mathcal{L})^2 \]</span> <span class="math display">\[ \Delta W_{t+1} = \nabla \mathcal{L} \cdot \sqrt{\frac{\delta_{t} + \epsilon}{\lambda_{t+1} + \epsilon}}\]</span> <span class="math display">\[ \delta_{t+1} = \delta_t \cdot \mu + (1 - \mu) \cdot (\Delta W_{t+1})^2 \]</span> <span class="math display">\[ W_{t+1} = W_t - \Delta W_{t+1}\]</span></p>
+            <h4 id="adam-adam">Adam <span class="citation">[<a href="#ref-adam">8</a>]</span></h4>
+            <p><span class="math display">\[ m_{t+1} = m_t \cdot \beta_m + (1 - \beta_m) \cdot \nabla \mathcal{L}\]</span> <span class="math display">\[ v_{t+1} = v_t \cdot \beta_v + (1 - \beta_v) \cdot (\nabla \mathcal{L})^2\]</span> <span class="math display">\[ l_{t+1} = \alpha \cdot \frac{\sqrt{1 - \beta_v^p}}{1 - \beta_m^p} \]</span> <span class="math display">\[ W_{t+1} = W_t - l_{t+1} \frac{m_{t+1}}{\sqrt{v_{t+1}} + \epsilon} \]</span></p>
+            <p>Where <span class="math inline">\(p\)</span> is the current epoch, that is 1 + the number of passes through the dataset.</p>
+            <h3 id="conjugate-gradients">Conjugate Gradients</h3>
+            <p>The following method tries to estimate the second order derivative of the loss function. This second order derivative - the Hessian <span class="math inline">\(H\)</span> - is most ably used in Newton's algorithm (<span class="math inline">\(W_(t+1) = W_t - \alpha \cdot H^{-1}\nabla \mathcal{L}\)</span>) and gives extremely useful information about the curvature of the loss function. Properly estimating the Hessian (and its inverse) has been a long time challenging task since the Hessian is composed of <span class="math inline">\(\lvert W \rvert^2\)</span> terms. For more information I'd recommend these papers <span class="citation">[<a href="#ref-dauphin">9</a>–<a href="#ref-martens">11</a>]</span> and chapter 8.2 of the deep learning book <span class="citation">[<a href="#ref-dlbook">12</a>]</span>. The following description was inspired by Wright and Nocedal <span class="citation">[<a href="#ref-optibook">13</a>]</span>.</p>
+            <p><span class="math display">\[ p_{t+1} = \beta_{t+1} \cdot p_t - \nabla \mathcal{L} \]</span> <span class="math display">\[ W_{t+1} = \alpha \cdot p_{t+1} \]</span></p>
+            <p>Where <span class="math inline">\(\beta_{t+1}\)</span> can be computed by the Fletcher-Rieves or Hestenes-Stiefel methods. (Notice the subscript of the gradients.)</p>
+            <h4 id="fletcher-rieves">Fletcher-Rieves</h4>
+            <p><span class="math display">\[ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot \nabla_{W_{t}}\mathcal{L}}{\nabla_{W_{t-1}}\mathcal{L}^T \cdot \nabla_{W_{t-1}}\mathcal{L}} \]</span></p>
+            <h4 id="hestenes-stiefel">Hestenes-Stiefel</h4>
+            <p><span class="math display">\[ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot (\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})}{(\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})^T \cdot p_t} \]</span></p>
+            <h1 id="beyond-sequentiallity">Beyond Sequentiallity</h1>
+            <ul>
+            <li>Introduce sync and async</li>
+            <li>Introduce Hogwild + async begets momentum</li>
+            <li>Introduce architectures and tricks to make it faster (quantization, ...) (parameter server, mpi, etc...)</li>
+            <li>Distributed Synthetic Gradients</li>
+            <li>The case of RL: Naive, Gorila, A3C, HPC Policy Gradients</li>
+            </ul>
+            <h1 id="benchmarks">Benchmarks</h1>
+            <ul>
+            <li>toy problems</li>
+            <li>mnist</li>
+            <li>cifar10</li>
+            </ul>
+            <h1 id="a-live-example">A Live Example</h1>
+            <h1 id="acknowledgements">Acknowledgements</h1>
+            <h1 id="citation">Citation</h1>
+            <h1 id="references">References</h1>
+            <p>Some of the relevant literature for this article. <br /></p>
+            <p>http://www.benfrederickson.com/numerical-optimization/</p>
+            <p>http://sebastianruder.com/optimizing-gradient-descent/</p>
+            <p>http://lossfunctions.tumblr.com/</p>
+            <p>http://www.denizyuret.com/2015/03/alec-radfords-animations-for.html</p>
+            <p>https://www.allinea.com/blog/201610/deep-learning-episode-3-supercomputer-vs-pong</p>
+            <div id="refs" class="references">
+            <div id="ref-opti-mpich">
+            <p>1. Thakur, R., Rabenseifner, R., Gropp, W.: Optimization of collective communication operations in mpich. International Journal of High Performance Computing Applications. 19, 49–66 (2005).</p>
+            </div>
+            <div id="ref-gorila">
+            <p>2. Van Hasselt, H., Guez, A., Silver, D.: Deep reinforcement learning with double q-learning. CoRR, abs/1509.06461. (2015).</p>
+            </div>
+            <div id="ref-comp-trpo-cem">
+            <p>3. Arnold, S., Chu, E., Cohn, B., Valero-Cuevas, F.: Performance comparison between trpo and cem. SCMLS. (2016).</p>
+            </div>
+            <div id="ref-nesterov">
+            <p>4. Nesterov, Y.: A method of solving a convex programming problem with convergence rate o (1/k2). Presented at the.</p>
+            </div>
+            <div id="ref-adagrad">
+            <p>5. Duchi, J., Hazan, E., Singer, Y.: Adaptive subgradient methods for online learning and stochastic optimization. Journal of Machine Learning Research. 12, 2121–2159 (2011).</p>
+            </div>
+            <div id="ref-rmsprop">
+            <p>6. Hinton, G.: Lecture 6a: Overview of mini-batch gradient descent, (2013).</p>
+            </div>
+            <div id="ref-adadelta">
+            <p>7. Zeiler, M.D.: ADADELTA: An adaptive learning rate method. arXiv preprint arXiv:1212.5701. (2012).</p>
+            </div>
+            <div id="ref-adam">
+            <p>8. Kingma, D., Ba, J.: Adam: A method for stochastic optimization. arXiv preprint arXiv:1412.6980. (2014).</p>
+            </div>
+            <div id="ref-dauphin">
+            <p>9. Dauphin, Y.N., Pascanu, R., Gulcehre, C., Cho, K., Ganguli, S., Bengio, Y.: Identifying and attacking the saddle point problem in high-dimensional non-convex optimization. In: Advances in neural information processing systems. pp. 2933–2941 (2014).</p>
+            </div>
+            <div id="ref-choromanska">
+            <p>10. Choromanska, A., Henaff, M., Mathieu, M., Arous, G.B., LeCun, Y.: The loss surfaces of multilayer networks. Presented at the (2015).</p>
+            </div>
+            <div id="ref-martens">
+            <p>11. Martens, J.: Deep learning via hessian-free optimization. In: Proceedings of the 27th international conference on machine learning (icml-10). pp. 735–742 (2010).</p>
+            </div>
+            <div id="ref-dlbook">
+            <p>12. Goodfellow, I., Bengio, Y., Courville, A.: Deep learning, <a href="http://www.deeplearningbook.org" class="uri">http://www.deeplearningbook.org</a>, (2016).</p>
+            </div>
+            <div id="ref-optibook">
+            <p>13. Wright, S., Nocedal, J.: Numerical optimization.</p>
+            </div>
+            </div>
+            
+            <footer class="footer">
+                <p><b>An Overview of Distributed Deep Learning</b> - <i>Seb Arnold</i>, November 23, 2016.</p>
+            </footer>
+
+        </div> <!-- /container -->
+
+        <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+        <!-- Include all compiled plugins (below), or include individual files as needed -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+        <!--Prism for code highlighting-->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.5.1/prism.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.5.1/components/prism-python.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.5.1/components/prism-c.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.5.1/components/prism-java.min.js"></script>
+
+        <!--MathJax-->
+        <script type="text/x-mathjax-config">
+        var delim = '\u0024';
+        MathJax.Hub.Config({
+          tex2jax: {inlineMath: [[delim, delim], ['\\(','\\)']]}
+        });
+        </script>
+        <script src='https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML'></script>
+
+        <!--KaTeX JavaScript-->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.6.0/katex.min.js"></script>
+        <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.6.0/contrib/auto-render.min.js"></script>-->
+
+        <!--Pseudocode.js-->
+        <script src="http://www.tatetian.io/pseudocode.js/pseudocode/pseudocode.min.js"></script>
+
+        <!--Custom scripting-->
+        <script type="text/javascript">
+        // Allows prism to work properly
+        jQuery(document).ready(function() {
+            jQuery('.python').addClass('language-python').removeClass('python');
+            jQuery('.javascript').addClass('language-js').removeClass('javascript');
+            jQuery('.c').addClass('language-c').removeClass('c');
+            jQuery('.java').addClass('language-java').removeClass('java');
+            jQuery('.sourceCode').removeClass('sourceCode');
+            jQuery('table').addClass('table table-striped table-bordered');
+            jQuery('img').addClass('img-responsive');
+            // renderMathInElement(document.body, {
+            //     displayMode: false,
+            //     throwOnError: false,
+            //     errorColor: '#cc0000',
+            // });
+
+            var math = document.getElementsByClassName("math");
+            // MathJax.Hub.Queue(["Typeset", MathJax.Hub, math]);
+            MathJax.Hub.Queue([math, ]);
+            Prism.highlightAll(false);
+
+            // The following uses pseudocode.js to render algorithms
+            var i, content, container;
+            var pseudocodeElems = document.querySelectorAll('pre.algo code');
+            var parents = document.querySelectorAll('pre.algo');
+            var displayOptions = {
+                indentSize: '1.5em',
+                commentDelimiter: '//',
+                lineNumber: true,
+                lineNumberPunc: ':',
+                noEnd: true,
+                captionCount: 1,
+            };
+            for (i=0; i < pseudocodeElems.length; i++) {
+                content = pseudocodeElems[i].textContent;
+                container = document.createElement('div');
+                parents[i].parentNode.insertBefore(container, parents[i]);
+                pseudocode.render(content, container, displayOptions);
+                parents[i].style.display = 'none';
+                parents[i].parentNode.removeChild(parents[i]);
+            }
+        });
+        </script>
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-68693545-3', 'auto');
+          ga('send', 'pageview');
+        </script>
+
+    </body>
+</html>
