@@ -92,10 +92,10 @@ if __name__ == '__main__':
 
     add_instruction(graph, 'AllReduce the $\\Delta W_t^L$ across replicas')
     for r in REPLICAS:
-        replica_text_color(graph, r, '$\\Delta W_t^G$,', length=text_length, color='red')
-    graph.annotate('', (-4.0, -7), (4.0, -7), rad=0.3, shape='<->', width=1.0, color='red')
-    graph.annotate('', (-3.2, 5), (-5.5, -3.2), rad=0.3, shape='<->', width=1.0, color='red')
-    graph.annotate('', (5.5, -3.2), (3.2, 5), rad=0.3, shape='<->', width=1.0, color='red')
+        replica_text_color(graph, r, '$\\Delta W_t^G$,', length=text_length)
+    graph.annotate('', (-4.0, -7), (4.0, -7), rad=0.3, shape='<->')
+    graph.annotate('', (-3.2, 5), (-5.5, -3.2), rad=0.3, shape='<->')
+    graph.annotate('', (5.5, -3.2), (3.2, 5), rad=0.3, shape='<->')
     anim.add_frame(graph.numpy())
     text_length -= 1.4
 
