@@ -144,10 +144,6 @@
             <!--
                 * Introduce formalism and SGD
                 * Variants of SGD
-                * Tricky points
-                    * Implementation
-                    * FC, Convs, and RNNs
-                    * Benchmarks
             -->
             <h2 id="formulation-and-stochastic-gradient-descent">Formulation and Stochastic Gradient Descent</h2>
             <p>Let's first define the problem that we would like to solve. We are trying to train a neural network to solve a supervised task. This task could be anything from classifying images to playing Atari games or predicting the next word of a sentence. To do that, we'll rely on an algorithm - and its variants - from the mathematical optimization literature: <strong>stochastic gradient descent</strong>. Stochastic gradient descent (SGD) works by computing the gradient direction of the loss function we are trying to minimize with respect to the current parameters of the model. Once we know the gradient direction - aka the direction of greatest increase - we'll take a step in the opposite direction since we are trying to minimize the final error. </p>
@@ -189,7 +185,7 @@
             <p><span class="math display">\[ m_{t+1} = m_t \cdot \beta_m + (1 - \beta_m) \cdot \nabla \mathcal{L}\]</span> <span class="math display">\[ v_{t+1} = v_t \cdot \beta_v + (1 - \beta_v) \cdot (\nabla \mathcal{L})^2\]</span> <span class="math display">\[ l_{t+1} = \alpha \cdot \frac{\sqrt{1 - \beta_v^p}}{1 - \beta_m^p} \]</span> <span class="math display">\[ W_{t+1} = W_t - l_{t+1} \frac{m_{t+1}}{\sqrt{v_{t+1}} + \epsilon} \]</span></p>
             <p>Where <span class="math inline">\(p\)</span> is the current epoch, that is 1 + the number of passes through the dataset.</p>
             <h3 id="conjugate-gradients">Conjugate Gradients</h3>
-            <p>The following method tries to estimate the second order derivative of the loss function. This second order derivative - the Hessian <span class="math inline">\(H\)</span> - is most ably used in Newton's algorithm (<span class="math inline">\(W_(t+1) = W_t - \alpha \cdot H^{-1}\nabla \mathcal{L}\)</span>) and gives extremely useful information about the curvature of the loss function. Properly estimating the Hessian (and its inverse) has been a long time challenging task since the Hessian is composed of <span class="math inline">\(\lvert W \rvert^2\)</span> terms. For more information I'd recommend these papers <span class="citation">[<a href="#ref-dauphin">9</a>–<a href="#ref-martens">11</a>]</span> and chapter 8.2 of the deep learning book <span class="citation">[<a href="#ref-dlbook">12</a>]</span>. The following description was inspired by Wright and Nocedal <span class="citation">[<a href="#ref-optibook">13</a>]</span>.</p>
+            <p>The following method tries to estimate the second order derivative of the loss function. This second order derivative - the Hessian <span class="math inline">\(H\)</span> - is most ably used in Newton's algorithm (<span class="math inline">\(W_{t+1} = W_t - \alpha \cdot H^{-1}\nabla \mathcal{L}\)</span>) and gives extremely useful information about the curvature of the loss function. Properly estimating the Hessian (and its inverse) has been a long time challenging task since the Hessian is composed of <span class="math inline">\(\lvert W \rvert^2\)</span> terms. For more information I'd recommend these papers <span class="citation">[<a href="#ref-dauphin">9</a>–<a href="#ref-martens">11</a>]</span> and chapter 8.2 of the deep learning book <span class="citation">[<a href="#ref-dlbook">12</a>]</span>. The following description was inspired by Wright and Nocedal <span class="citation">[<a href="#ref-optibook">13</a>]</span>.</p>
             <p><span class="math display">\[ p_{t+1} = \beta_{t+1} \cdot p_t - \nabla \mathcal{L} \]</span> <span class="math display">\[ W_{t+1} = \alpha \cdot p_{t+1} \]</span></p>
             <p>Where <span class="math inline">\(\beta_{t+1}\)</span> can be computed by the Fletcher-Rieves or Hestenes-Stiefel methods. (Notice the subscript of the gradients.)</p>
             <h4 id="fletcher-rieves">Fletcher-Rieves</h4>
@@ -197,13 +193,68 @@
             <h4 id="hestenes-stiefel">Hestenes-Stiefel</h4>
             <p><span class="math display">\[ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot (\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})}{(\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})^T \cdot p_t} \]</span></p>
             <h1 id="beyond-sequentiallity">Beyond Sequentiallity</h1>
-            <ul>
-            <li>Introduce sync and async</li>
-            <li>Introduce Hogwild + async begets momentum</li>
-            <li>Introduce architectures and tricks to make it faster (quantization, ...) (parameter server, mpi, etc...)</li>
-            <li>Distributed Synthetic Gradients</li>
-            <li>The case of RL: Naive, Gorila, A3C, HPC Policy Gradients</li>
-            </ul>
+            <!--
+            * Introduce sync and async, nsync
+            * Introduce architectures and tricks to make it faster (quantization, ...) (parameter server, mpi, etc...)
+                * Tricky points
+                    * Implementation
+                    * FC, Convs, and RNNs
+                    * Benchmarks
+            * Introduce Hogwild + async begets momentum
+            * Distributed Synthetic Gradients
+            * The case of RL: Naive, Gorila, A3C, HPC Policy Gradients
+            -->
+            <p>Let's now delve into the core of this article: distributing deep learning. As mentioned above, when training <a href="https://openreview.net/forum?id=B1ckMDqlg">really deep models</a> on <a href="https://github.com/openimages/dataset">really large datasets</a> we need to add more parallelism to our computations. Distributing linear algebra operations on GPUs is not enough anymore, and researchers have began to explore how to use multiple machines. That's when deep learning met <em>High-Performance Computing</em> (HPC).</p>
+            <h2 id="synchronous-vs-asynchronous">Synchronous vs Asynchronous</h2>
+            <p>There are two approaches to parallelize the training of neural networks: model parallel and data parallel. Model parallel consists of &quot;breaking&quot; the learning model, and place those &quot;parts&quot; on different computational nodes. For example, we could put the first half of the layers on one GPU, and the other half on a second one. Or, split layers in their middle and assign them to separate GPUs. While appealing, this approach is rarely used in practice because of the slow communication latency between devices. Since I am not very familiar with model parallelism, I'll focus the rest of the blog post on data parallelism. </p>
+            <p>Data parallelism is rather intuitive; the data is partitioned across computational devices, and each device holds a copy of the learning model - called a replica or sometimes worker. Each replica computes gradients on its shard of the data, and the gradients are combined to update the model parameters. Different ways of combining gradients lead to different algorithms and results, so let's have a closer look.</p>
+            <h2 id="synchronous-distributed-sgd">Synchronous Distributed SGD</h2>
+            <p>In the sychronous setting, all replicas average all of their gradients at every timestep (minibatch). Doing so, we're effectively multiplying the batch size <span class="math inline">\(M\)</span> by the number of replicas <span class="math inline">\(R\)</span>, so that our <strong>overall minibatch</strong> size is <span class="math inline">\(R \cdot M\)</span>. This has several advantages.</p>
+            <ol style="list-style-type: decimal">
+            <li>The computation is completely deterministic.</li>
+            <li>We can work with fairly large models and large batch sizes even on memory-limited GPUs.</li>
+            <li>It's very simple to implement, and easy to debug and analyze.</li>
+            </ol>
+            <div class="figure">
+            <img src="./figs/sync.gif" />
+            
+            </div>
+            <p>This path to parallelism puts a strong emphasis on HPC, and the hardware that in use. In fact, it will be challenging to obtain a decent speedup unless you are using industrial hardware. And even so the choice of communication library, reduction algorithm, and other implementation details (e.g., data loading and transformation, model size, ...) will have a strong effect on the kind of performance gain you will encounter. </p>
+            <p>The following pseudo-code describes synchronous distributed SGD at the replica-level, for <span class="math inline">\(R\)</span> replicas, <span class="math inline">\(T\)</span> timesteps, and <span class="math inline">\(M\)</span> global batch size.</p>
+            <pre class="algo"><code>\begin{algorithm}
+                \caption{Synchronous SGD}
+                \begin{algorithmic}
+                        \While{$t &lt; T$}
+                            \State Get: a minibatch $(x, y) \sim \chi$ of size $M/R$.
+                            \State Compute: $\nabla \mathcal{L}(y, F(x; W_t))$ on local $(x, y)$.
+                            \State Sum: all $\nabla \mathcal{L}(y, F(x; W_t))$ across replicas into $\Delta W_t$
+                            \State Update: $W_{t+1} = W_t - \alpha \frac{\Delta W_t}{R}$
+                            \State $t = t + 1$
+                            \State (Optional) Synchronize: $W_{t+1}$ to avoid numerical errors
+                        \EndWhile
+                \end{algorithmic}
+            \end{algorithm}</code></pre>
+            <h2 id="asynchronous-distributed-sgd">Asynchronous Distributed SGD</h2>
+            <p>The asynchronous setting is slightly more interesting from a mathematical perspective, and slightly trickier to implement in practice. Each replica will now access a shared-memory space, where the global parameters <span class="math inline">\(W_t^G\)</span> are stored. After copying the parameters in its local memory <span class="math inline">\(W_t^L\)</span>, it will compute the gradients <span class="math inline">\(\nabla \mathcal{L}\)</span> and the update <span class="math inline">\(\Delta W_t\)</span> with respect to its current <span class="math inline">\(W_t\)</span>. The final step is to apply <span class="math inline">\(\Delta W_t^L\)</span> to the global parameters in shared memory.</p>
+            <pre class="algo"><code>\begin{algorithm}
+                \caption{Asynchronous SGD}
+                \begin{algorithmic}
+                        \While{$t &lt; T$}
+                            \State Get: a minibatch $(x, y) \sim \chi$ of size $M/R$.
+                            \State Copy: Global $W_t^G$ into local $W_t^L$.
+                            \State Compute: $\nabla \mathcal{L}(y, F(x; W_t^L))$ on $(x, y)$.
+                            \State Set: $\Delta W_t^L = \alpha  \cdot \nabla \mathcal{L}(y, F(x; W_t^L))$
+                            \State Update: $W_{t+1}^G = W_t^G - \Delta W_t^L$
+                            \State $t = t + 1$
+                        \EndWhile
+                \end{algorithmic}
+            \end{algorithm}</code></pre>
+            <p>The advantage of adding asynchrony to our training is that replicas can work at their own pace, without waiting for others to finish computing their gradients. However, this is also where the trickiness resides; we have no guarantee that while one replica is computing the gradients with respect to a set of parameters, the global parameters haven't been updated by another one. If this happens, then the global parameters will be updated with <strong>stale</strong> gradients - gradients computed with old version of the parameters.</p>
+            <p>async nsync special async</p>
+            <h2 id="implementation-tricks">Implementation Tricks</h2>
+            <h2 id="hogwild-and-momentum">Hogwild! and Momentum</h2>
+            <h2 id="distributed-synthetic-gradients">Distributed Synthetic Gradients</h2>
+            <h2 id="distributed-reinforcement-learning">Distributed Reinforcement Learning</h2>
             <h1 id="benchmarks">Benchmarks</h1>
             <ul>
             <li>toy problems</li>

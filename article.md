@@ -11,10 +11,6 @@ Last year, I was lucky to intern at Nervana Systems where I was able to expand t
 <!--
     * Introduce formalism and SGD
     * Variants of SGD
-    * Tricky points
-        * Implementation
-        * FC, Convs, and RNNs
-        * Benchmarks
 -->
 
 ## Formulation and Stochastic Gradient Descent
@@ -84,7 +80,7 @@ $$ W_{t+1} = W_t - l_{t+1} \frac{m_{t+1}}{\sqrt{v_{t+1}} + \epsilon} $$
 Where $p$ is the current epoch, that is 1 + the number of passes through the dataset.
 
 ### Conjugate Gradients
-The following method tries to estimate the second order derivative of the loss function. This second order derivative - the Hessian $H$ - is most ably used in Newton's algorithm ($W_(t+1) = W_t - \alpha \cdot H^{-1}\nabla \mathcal{L}$) and gives extremely useful information about the curvature of the loss function. Properly estimating the Hessian (and its inverse) has been a long time challenging task since the Hessian is composed of $\lvert W \rvert^2$ terms. For more information I'd recommend these papers [@dauphin;@choromanska;@martens] and chapter 8.2 of the deep learning book @dlbook. The following description was inspired by Wright and Nocedal @optibook.
+The following method tries to estimate the second order derivative of the loss function. This second order derivative - the Hessian $H$ - is most ably used in Newton's algorithm ($W_{t+1} = W_t - \alpha \cdot H^{-1}\nabla \mathcal{L}$) and gives extremely useful information about the curvature of the loss function. Properly estimating the Hessian (and its inverse) has been a long time challenging task since the Hessian is composed of $\lvert W \rvert^2$ terms. For more information I'd recommend these papers [@dauphin;@choromanska;@martens] and chapter 8.2 of the deep learning book @dlbook. The following description was inspired by Wright and Nocedal @optibook.
 
 $$ p_{t+1} = \beta_{t+1} \cdot p_t - \nabla \mathcal{L} $$
 $$ W_{t+1} = \alpha \cdot p_{t+1} $$
@@ -97,13 +93,91 @@ $$ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot \nabla_{W_{t}}\mathcal{
 #### Hestenes-Stiefel
 $$ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot (\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})}{(\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})^T \cdot p_t} $$
 
-# Beyond Sequentiallity
 
-* Introduce sync and async
-* Introduce Hogwild + async begets momentum
+
+# Beyond Sequentiallity
+<!--
+* Introduce sync and async, nsync
 * Introduce architectures and tricks to make it faster (quantization, ...) (parameter server, mpi, etc...)
+    * Tricky points
+        * Implementation
+        * FC, Convs, and RNNs
+        * Benchmarks
+* Introduce Hogwild + async begets momentum
 * Distributed Synthetic Gradients
 * The case of RL: Naive, Gorila, A3C, HPC Policy Gradients
+-->
+
+Let's now delve into the core of this article: distributing deep learning. As mentioned above, when training [really deep models](https://openreview.net/forum?id=B1ckMDqlg) on [really large datasets](https://github.com/openimages/dataset) we need to add more parallelism to our computations. Distributing linear algebra operations on GPUs is not enough anymore, and researchers have began to explore how to use multiple machines. That's when deep learning met *High-Performance Computing* (HPC).
+
+## Synchronous vs Asynchronous
+There are two approaches to parallelize the training of neural networks: model parallel and data parallel. Model parallel consists of "breaking" the learning model, and place those "parts" on different computational nodes. For example, we could put the first half of the layers on one GPU, and the other half on a second one. Or, split layers in their middle and assign them to separate GPUs. While appealing, this approach is rarely used in practice because of the slow communication latency between devices. Since I am not very familiar with model parallelism, I'll focus the rest of the blog post on data parallelism. \newline
+
+Data parallelism is rather intuitive; the data is partitioned across computational devices, and each device holds a copy of the learning model - called a replica or sometimes worker. Each replica computes gradients on its shard of the data, and the gradients are combined to update the model parameters. Different ways of combining gradients lead to different algorithms and results, so let's have a closer look. 
+
+## Synchronous Distributed SGD
+In the sychronous setting, all replicas average all of their gradients at every timestep (minibatch). Doing so, we're effectively multiplying the batch size $M$ by the number of replicas $R$, so that our **overall minibatch** size is $R \cdot M$. This has several advantages.
+
+1. The computation is completely deterministic. 
+2. We can work with fairly large models and large batch sizes even on memory-limited GPUs. 
+3. It's very simple to implement, and easy to debug and analyze.
+
+![](./figs/sync.gif)
+
+This path to parallelism puts a strong emphasis on HPC, and the hardware that in use. In fact, it will be challenging to obtain a decent speedup unless you are using industrial hardware. And even so the choice of communication library, reduction algorithm, and other implementation details (e.g., data loading and transformation, model size, ...) will have a strong effect on the kind of performance gain you will encounter. \newline
+
+The following pseudo-code describes synchronous distributed SGD at the replica-level, for $R$ replicas, $T$ timesteps, and $M$ global batch size.
+
+~~~algo
+\begin{algorithm}
+    \caption{Synchronous SGD}
+    \begin{algorithmic}
+            \While{$t < T$}
+                \State Get: a minibatch $(x, y) \sim \chi$ of size $M/R$.
+                \State Compute: $\nabla \mathcal{L}(y, F(x; W_t))$ on local $(x, y)$.
+                \State Sum: all $\nabla \mathcal{L}(y, F(x; W_t))$ across replicas into $\Delta W_t$
+                \State Update: $W_{t+1} = W_t - \alpha \frac{\Delta W_t}{R}$
+                \State $t = t + 1$
+                \State (Optional) Synchronize: $W_{t+1}$ to avoid numerical errors
+            \EndWhile
+    \end{algorithmic}
+\end{algorithm}
+~~~
+
+## Asynchronous Distributed SGD
+The asynchronous setting is slightly more interesting from a mathematical perspective, and slightly trickier to implement in practice. Each replica will now access a shared-memory space, where the global parameters $W_t^G$ are stored. After copying the parameters in its local memory $W_t^L$, it will compute the gradients $\nabla \mathcal{L}$ and the update $\Delta W_t$ with respect to its current $W_t$. The final step is to apply $\Delta W_t^L$ to the global parameters in shared memory.
+
+~~~algo
+\begin{algorithm}
+    \caption{Asynchronous SGD}
+    \begin{algorithmic}
+            \While{$t < T$}
+                \State Get: a minibatch $(x, y) \sim \chi$ of size $M/R$.
+                \State Copy: Global $W_t^G$ into local $W_t^L$.
+                \State Compute: $\nabla \mathcal{L}(y, F(x; W_t^L))$ on $(x, y)$.
+                \State Set: $\Delta W_t^L = \alpha  \cdot \nabla \mathcal{L}(y, F(x; W_t^L))$
+                \State Update: $W_{t+1}^G = W_t^G - \Delta W_t^L$
+                \State $t = t + 1$
+            \EndWhile
+    \end{algorithmic}
+\end{algorithm}
+~~~
+
+The advantage of adding asynchrony to our training is that replicas can work at their own pace, without waiting for others to finish computing their gradients. However, this is also where the trickiness resides; we have no guarantee that while one replica is computing the gradients with respect to a set of parameters, the global parameters haven't been updated by another one. If this happens, then the global parameters will be updated with **stale** gradients - gradients computed with old version of the parameters.
+
+async
+nsync
+special async
+
+## Implementation Tricks
+
+## Hogwild! and Momentum
+
+## Distributed Synthetic Gradients
+
+## Distributed Reinforcement Learning
+
+
 
 # Benchmarks
 * toy problems
