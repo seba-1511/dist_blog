@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from seb.plot import Drawing, Plot, MAUREENSTONE_COLORS
-# from seb.plot import Animation
+from seb.plot import Animation
 
 PLOT_WIDTH = 7200
 PLOT_HEIGHT = 5400
@@ -78,7 +78,7 @@ def add_instruction(graph, text):
 
 
 if __name__ == '__main__':
-    # anim = Animation(fps=0.35)
+    anim = Animation(fps=0.35)
 
     graph = Drawing('Asynchronous SGD', PLOT_HEIGHT, PLOT_WIDTH)
     graph.set_scales('linear', 'linear')
@@ -101,35 +101,36 @@ if __name__ == '__main__':
     text_length = REPLICA_WIDTH / 2.0 - 0.1
     replica = REPLICAS[0]
 
-    # anim.add_frame(graph.numpy())
+    anim.add_frame(graph.numpy())
+    anim.add_frame(graph.numpy())
 
     # Copy params
     add_instruction(graph, 'Copy $W^G$ into $W_t^L$')
     replica_text_color(graph, replica, '$W_t^L$,', length=text_length)
     graph.annotate('', (-2.9, 5), (-2.9, -4), rad=0.3, shape='->', width=1.3)
-    # anim.add_frame(graph.numpy())
+    anim.add_frame(graph.numpy())
     text_length -= 0.85
 
     # Compute Gradients
     add_instruction(graph, 'Compute gradients $\\nabla_{W_t^L} \mathcal{L}$ locally')
     replica_text(graph, replica, '$\\nabla_{W_t^L} \mathcal{L}$,', length=text_length)
-    # anim.add_frame(graph.numpy())
+    anim.add_frame(graph.numpy())
     text_length -= 1.7
 
     # Compute Update
     add_instruction(graph, 'Compute update $\\Delta W_{t+1}^L$ with favorite optimizer')
     replica_text(graph, replica, '$\\Delta W_{t+1}^L$,', length=text_length)
-    # anim.add_frame(graph.numpy())
+    anim.add_frame(graph.numpy())
     text_length -= 1.8
 
     # Apply update globally
     add_instruction(graph, 'Apply local update $\\Delta W_{t+1}^L$ to global params $W^G$')
     replica_text_color(graph, replica, '$W^G$', length=text_length)
     graph.annotate('', (2.9, -4), (2.9, 5), rad=0.3, shape='->', width=1.3)
-    # anim.add_frame(graph.numpy())
+    anim.add_frame(graph.numpy())
     text_length -= 0.8
 
     graph.save('./async.png')
     graph.save('./async.pdf')
-    # anim.save('./async.gif')
-    # anim.save('./async.mp4')
+    anim.save('./async.gif')
+    anim.save('./async.mp4')

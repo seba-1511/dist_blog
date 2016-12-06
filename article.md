@@ -173,7 +173,7 @@ special async
 
 ## Implementation Tricks
 
-## Hogwild! and Momentum
+## Hogwild! and Distributed Momentum 
 
 ## Distributed Synthetic Gradients
 

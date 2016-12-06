@@ -67,6 +67,7 @@ if __name__ == '__main__':
     for r in REPLICAS:
         replica_draw(graph, r)
     anim.add_frame(graph.numpy())
+    anim.add_frame(graph.numpy())
 
     text_length = REPLICA_WIDTH / 2.0 - 0.1
 
