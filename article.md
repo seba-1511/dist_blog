@@ -135,7 +135,7 @@ The following pseudo-code describes synchronous distributed SGD at the replica-l
             \While{$t < T$}
                 \State Get: a minibatch $(x, y) \sim \chi$ of size $M/R$.
                 \State Compute: $\nabla \mathcal{L}(y, F(x; W_t))$ on local $(x, y)$.
-                \State Sum: all $\nabla \mathcal{L}(y, F(x; W_t))$ across replicas into $\Delta W_t$
+                \State AllReduce: sum all $\nabla \mathcal{L}(y, F(x; W_t))$ across replicas into $\Delta W_t$
                 \State Update: $W_{t+1} = W_t - \alpha \frac{\Delta W_t}{R}$
                 \State $t = t + 1$
                 \State (Optional) Synchronize: $W_{t+1}$ to avoid numerical errors
@@ -164,6 +164,8 @@ The asynchronous setting is slightly more interesting from a mathematical perspe
 ~~~
 
 The advantage of adding asynchrony to our training is that replicas can work at their own pace, without waiting for others to finish computing their gradients. However, this is also where the trickiness resides; we have no guarantee that while one replica is computing the gradients with respect to a set of parameters, the global parameters haven't been updated by another one. If this happens, then the global parameters will be updated with **stale** gradients - gradients computed with old version of the parameters.
+
+![](./figs/async.gif)
 
 async
 nsync
