@@ -21,7 +21,7 @@ R1_X, R1_Y = 0.0, 5.0
 R2_X, R2_Y = -4.5, -5.0
 R3_X, R3_Y = 4.5, -5.0
 R1_COLOR, R2_COLOR, R3_COLOR = MAUREENSTONE_COLORS[0:3]
-ALPHA, ALPHA_FADED = 0.8, 0.2
+ALPHA, ALPHA_FADED = 0.4, 0.2
 
 SM_COLOR = MAUREENSTONE_COLORS[1]
 SM_X, SM_Y = 0.0, Y_MAX - SM_HEIGHT
@@ -46,18 +46,20 @@ REPLICAS = [{
 
 
 def shared_memory_draw(graph):
-    graph.fancybox(SM_X, SM_Y, SM_WIDTH, SM_HEIGHT, fill=True, color=SM_COLOR, linewidth=2.0, alpha=0.8)
+    graph.fancybox(SM_X, SM_Y, SM_WIDTH, SM_HEIGHT, fill=SM_COLOR, color=SM_COLOR, linewidth=2.0, alpha=0.8)
     graph.text('Shared Memory', (SM_X - 2.2, SM_Y-0.3), size=TEXT_SIZE+2)
 
 def replica_draw(graph, r):
     alpha = ALPHA
+    alpha_text = 1.0
     offset = -0.1
     if r['faded']:
         alpha = ALPHA_FADED
+        alpha_text = ALPHA_FADED
         # offset = 0.2
-    graph.fancybox(r['x'], r['y'], REPLICA_WIDTH, REPLICA_HEIGHT, fill=True,
+    graph.fancybox(r['x'], r['y'], REPLICA_WIDTH, REPLICA_HEIGHT, fill=r['color'],
                    linewidth=2.0, color=r['color'], alpha=alpha)
-    graph.text('Replica', (r['x'] - 0.92, r['y'] - offset), size=TEXT_SIZE, alpha=alpha)
+    graph.text('Replica', (r['x'] - 0.92, r['y'] - offset), size=TEXT_SIZE, alpha=alpha_text)
 
 
 def replica_text(graph, r, text='', length=1.0):
@@ -66,11 +68,13 @@ def replica_text(graph, r, text='', length=1.0):
 
 def replica_text_color(graph, r, text='', length=1.0, color=GLOBAL_COLOR, size=None):
     alpha = ALPHA
+    alpha_text = 1.0
     if size is None: 
         size = TEXT_SIZE - 2
     if r['faded']:
         alpha = ALPHA_FADED
-    graph.text(text, (r['x'] - length, r['y'] - REPLICA_HEIGHT / 2.7), size=size, color=color, alpha=alpha)
+        alpha_text = ALPHA_FADED
+    graph.text(text, (r['x'] - length, r['y'] - REPLICA_HEIGHT / 2.7), size=size, color=color, alpha=alpha_text)
 
 
 def add_instruction(graph, text):
@@ -106,8 +110,9 @@ if __name__ == '__main__':
 
     # Copy params
     add_instruction(graph, 'Copy $W^G$ into $W_t^L$')
-    replica_text_color(graph, replica, '$W_t^L$,', length=text_length)
+    replica_text_color(graph, replica, '$W_t^L$,', length=text_length, color='black')
     graph.annotate('', (-2.9, 5), (-2.9, -4), rad=0.3, shape='->', width=1.3)
+    graph.text('$W^G$', (-4.7, 0.5))
     anim.add_frame(graph.numpy())
     text_length -= 0.85
 
@@ -125,8 +130,9 @@ if __name__ == '__main__':
 
     # Apply update globally
     add_instruction(graph, 'Apply local update $\\Delta W_{t+1}^L$ to global params $W^G$')
-    replica_text_color(graph, replica, '$W^G$', length=text_length)
+    replica_text_color(graph, replica, '$W^G$', length=text_length, color='black')
     graph.annotate('', (2.9, -4), (2.9, 5), rad=0.3, shape='->', width=1.3)
+    graph.text('$\Delta W_t^L$', (3.8, 0.5))
     anim.add_frame(graph.numpy())
     text_length -= 0.8
 

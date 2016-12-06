@@ -37,9 +37,8 @@ REPLICAS = [{
 
 
 def replica_draw(graph, r):
-    # r = REPLICAS[r]
-    graph.fancybox(r['x'], r['y'], REPLICA_WIDTH, REPLICA_HEIGHT, fill=True,
-                   linewidth=2.0, color=r['color'], alpha=0.8)
+    graph.fancybox(r['x'], r['y'], REPLICA_WIDTH, REPLICA_HEIGHT, fill=r['color'],
+                   linewidth=2.0, color=r['color'], alpha=0.4)
     graph.text('Replica', (r['x'] - 0.92, r['y'] - 0.0), size=TEXT_SIZE)
 
 
@@ -47,7 +46,9 @@ def replica_text(graph, r, text='', length=1.0):
     replica_text_color(graph, r, text, length, color=r['color'])
 
 
-def replica_text_color(graph, r, text='', length=1.0, color=GLOBAL_COLOR):
+def replica_text_color(graph, r, text='', length=1.0, color=None):
+    if color is None:
+        color = GLOBAL_COLOR
     graph.text(
         text, (r['x'] - length, r['y'] - REPLICA_HEIGHT / 2.5), size=TEXT_SIZE - 2, color=color)
 
@@ -93,12 +94,15 @@ if __name__ == '__main__':
 
     add_instruction(graph, 'AllReduce the $\\Delta W_t^L$ across replicas')
     for r in REPLICAS:
-        replica_text_color(graph, r, '$\\Delta W_t^G$,', length=text_length, color='red')
-    graph.annotate('', (-4.0, -7), (4.0, -7), rad=0.3, shape='<->', width=1.0, color='red')
-    graph.annotate('', (-3.2, 5), (-5.5, -3.2), rad=0.3, shape='<->', width=1.0, color='red')
-    graph.annotate('', (5.5, -3.2), (3.2, 5), rad=0.3, shape='<->', width=1.0, color='red')
-    anim.add_frame(graph.numpy())
+        replica_text_color(graph, r, '$\\Delta W_t^G$,', length=text_length, color=GLOBAL_COLOR)
+    graph.annotate('', (-4.0, -7), (4.0, -7), rad=0.3, shape='<->', width=1.3)
+    graph.annotate('', (-3.2, 5), (-5.5, -3.2), rad=0.3, shape='<->', width=1.3)
+    graph.annotate('', (5.5, -3.2), (3.2, 5), rad=0.3, shape='<->', width=1.3)
+    graph.text('$\Delta W_t^G$', (5.1, 2.0))
+    graph.text('$\Delta W_t^G$', (-0.68, -8.5))
+    graph.text('$\Delta W_t^G$', (-6.2, 2.0))
     text_length -= 1.4
+    anim.add_frame(graph.numpy())
 
     add_instruction(
         graph, 'Update to $W_{t+1}$ with normalized  $\\Delta W_t$')
