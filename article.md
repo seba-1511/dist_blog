@@ -163,13 +163,13 @@ The asynchronous setting is slightly more interesting from a mathematical perspe
 \end{algorithm}
 ~~~
 
-The advantage of adding asynchrony to our training is that replicas can work at their own pace, without waiting for others to finish computing their gradients. However, this is also where the trickiness resides; we have no guarantee that while one replica is computing the gradients with respect to a set of parameters, the global parameters haven't been updated by another one. If this happens, then the global parameters will be updated with **stale** gradients - gradients computed with old version of the parameters.
+The advantage of adding asynchrony to our training is that replicas can work at their own pace, without waiting for others to finish computing their gradients. However, this is also where the trickiness resides; we have no guarantee that while one replica is computing the gradients with respect to a set of parameters, the global parameters haven't been updated by another one. If this happens, the global parameters will be updated with **stale** gradients - gradients computed with old version of the parameters.
 
 ![](./figs/async.gif)
 
-async
-nsync
-special async
+In order to counter the effect of staleness, Zhang & al. @staleness-aware suggested to divide the gradients by their staleness. By limiting the impact of very stale gradients, they are able to obtain convergence almost identical to a synchronous system. In addition, they also proposed a generalization of synchronous and asynchronous SGD named *$n$-softsync*. In this case, updates to the shared global parameters are applied in batches of $n$. Note that $n = 1$ is our asynchronous training, while $n = R$ is synchronous. A corresponding alternative named *backup workers* was suggested by Chen & al. @backup-workers in the summer of 2016. \newline
+
+Finally, there is another view of asynchronous training that is less often explored in the litterature. Each replica executes $k$ optimization steps locally, and keeps an aggregation of the updates. Once those $k$ steps are executed, all replicas synchronize their aggregated update and apply them to the parameters before the $k$ steps. This approach is best used with [Elastic Averaging SGD](https://github.com/twitter/torch-distlearn/blob/master/lua/AllReduceEA.md) @easgd, and limits the frequency at which replicas need to communicate.
 
 ## Implementation Tricks
 

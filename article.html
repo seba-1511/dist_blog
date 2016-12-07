@@ -249,12 +249,13 @@
                         \EndWhile
                 \end{algorithmic}
             \end{algorithm}</code></pre>
-            <p>The advantage of adding asynchrony to our training is that replicas can work at their own pace, without waiting for others to finish computing their gradients. However, this is also where the trickiness resides; we have no guarantee that while one replica is computing the gradients with respect to a set of parameters, the global parameters haven't been updated by another one. If this happens, then the global parameters will be updated with <strong>stale</strong> gradients - gradients computed with old version of the parameters.</p>
+            <p>The advantage of adding asynchrony to our training is that replicas can work at their own pace, without waiting for others to finish computing their gradients. However, this is also where the trickiness resides; we have no guarantee that while one replica is computing the gradients with respect to a set of parameters, the global parameters haven't been updated by another one. If this happens, the global parameters will be updated with <strong>stale</strong> gradients - gradients computed with old version of the parameters.</p>
             <div class="figure">
             <img src="./figs/async.gif" />
             
             </div>
-            <p>async nsync special async</p>
+            <p>In order to counter the effect of staleness, Zhang &amp; al. <span class="citation">[<a href="#ref-staleness-aware">14</a>]</span> suggested to divide the gradients by their staleness. By limiting the impact of very stale gradients, they are able to obtain convergence almost identical to a synchronous system. In addition, they also proposed a generalization of synchronous and asynchronous SGD named <em><span class="math inline">\(n\)</span>-softsync</em>. In this case, updates to the shared global parameters are applied in batches of <span class="math inline">\(n\)</span>. Note that <span class="math inline">\(n = 1\)</span> is our asynchronous training, while <span class="math inline">\(n = R\)</span> is synchronous. A corresponding alternative named <em>backup workers</em> was suggested by Chen &amp; al. <span class="citation">[<a href="#ref-backup-workers">15</a>]</span> in the summer of 2016. </p>
+            <p>Finally, there is another view of asynchronous training that is less often explored in the litterature. Each replica executes <span class="math inline">\(k\)</span> optimization steps locally, and keeps an aggregation of the updates. Once those <span class="math inline">\(k\)</span> steps are executed, all replicas synchronize their aggregated update and apply them to the parameters before the <span class="math inline">\(k\)</span> steps. This approach is best used with <a href="https://github.com/twitter/torch-distlearn/blob/master/lua/AllReduceEA.md">Elastic Averaging SGD</a> <span class="citation">[<a href="#ref-easgd">16</a>]</span>, and limits the frequency at which replicas need to communicate.</p>
             <h2 id="implementation-tricks">Implementation Tricks</h2>
             <h2 id="hogwild-and-distributed-momentum">Hogwild! and Distributed Momentum</h2>
             <h2 id="distributed-synthetic-gradients">Distributed Synthetic Gradients</h2>
@@ -314,6 +315,15 @@
             </div>
             <div id="ref-optibook">
             <p>13. Wright, S., Nocedal, J.: Numerical optimization.</p>
+            </div>
+            <div id="ref-staleness-aware">
+            <p>14. Zhang, W., Gupta, S., Lian, X., Liu, J.: Staleness-aware async-sgd for distributed deep learning. arXiv preprint arXiv:1511.05950. (2015).</p>
+            </div>
+            <div id="ref-backup-workers">
+            <p>15. Chen, J., Monga, R., Bengio, S., Jozefowicz, R.: Revisiting distributed synchronous sgd. arXiv preprint arXiv:1604.00981. (2016).</p>
+            </div>
+            <div id="ref-easgd">
+            <p>16. Zhang, S., Choromanska, A.E., LeCun, Y.: Deep learning with elastic averaging sgd. In: Advances in neural information processing systems. pp. 685–693 (2015).</p>
             </div>
             </div>
             
