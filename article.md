@@ -1,4 +1,4 @@
-% An Guide to Distributed Deep Learning
+% A Guide to Distributed Deep Learning
 % Seb Arnold
 % November 23, 2016
 
