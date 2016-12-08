@@ -5,7 +5,7 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-        <title>An Overview of Distributed Deep Learning - Seb Arnold</title>
+        <title>An Guide to Distributed Deep Learning - Seb Arnold</title>
 
         <!-- Bootstrap -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" />
@@ -133,7 +133,7 @@
                 <!--</ul>-->
                 <!--</nav>-->
 
-                                <h1 class="text-center">An Overview of Distributed Deep Learning</h1>
+                                <h1 class="text-center">An Guide to Distributed Deep Learning</h1>
                 <h4 class="text-sm text-muted text-center"> by Seb Arnold,  <span style="font-weight:normal;"><i>November 23, 2016</i></span></h4>
                             </div>
 
@@ -195,7 +195,7 @@
             <h1 id="beyond-sequentiallity">Beyond Sequentiallity</h1>
             <!--
             * Introduce sync and async, nsync
-            * Introduce architectures and tricks to make it faster (quantization, ...) (parameter server, mpi, etc...)
+            * Introduce architectures and tricks to make it faster (quantization, residuals, ...) (parameter server, mpi, etc...)
                 * Tricky points
                     * Implementation
                     * FC, Convs, and RNNs
@@ -256,11 +256,33 @@
             </div>
             <p>In order to counter the effect of staleness, Zhang &amp; al. <span class="citation">[<a href="#ref-staleness-aware">14</a>]</span> suggested to divide the gradients by their staleness. By limiting the impact of very stale gradients, they are able to obtain convergence almost identical to a synchronous system. In addition, they also proposed a generalization of synchronous and asynchronous SGD named <em><span class="math inline">\(n\)</span>-softsync</em>. In this case, updates to the shared global parameters are applied in batches of <span class="math inline">\(n\)</span>. Note that <span class="math inline">\(n = 1\)</span> is our asynchronous training, while <span class="math inline">\(n = R\)</span> is synchronous. A corresponding alternative named <em>backup workers</em> was suggested by Chen &amp; al. <span class="citation">[<a href="#ref-backup-workers">15</a>]</span> in the summer of 2016. </p>
             <p>Finally, there is another view of asynchronous training that is less often explored in the litterature. Each replica executes <span class="math inline">\(k\)</span> optimization steps locally, and keeps an aggregation of the updates. Once those <span class="math inline">\(k\)</span> steps are executed, all replicas synchronize their aggregated update and apply them to the parameters before the <span class="math inline">\(k\)</span> steps. This approach is best used with <a href="https://github.com/twitter/torch-distlearn/blob/master/lua/AllReduceEA.md">Elastic Averaging SGD</a> <span class="citation">[<a href="#ref-easgd">16</a>]</span>, and limits the frequency at which replicas need to communicate.</p>
-            <h2 id="implementation-tricks">Implementation Tricks</h2>
+            <h2 id="implementation">Implementation</h2>
+            <p>Now that we have a decent understanding of the mechanics of distributed deep learning, let's explore possible implementations.</p>
+            <h3 id="parameter-server-vs-tree-reductions">Parameter Server vs Tree-reductions</h3>
+            <p>The first decision to make is how to setup the architecture of the system. In this case, we mainly have two options: parameter server or tree-reductions. In the parameter server case, one machine is responsible for hodling and serving the global parameters to all replicas. As presented in <span class="citation">[<a href="#ref-downpour">17</a>]</span>, there can be several servers holding different parameters of the model to avoid contention, and they can themselves be hierarchically connected (eg, tree-shape in <span class="citation">[<a href="#ref-rudra">18</a>]</span>). One advantage of using parameter servers is that it's easy to implement different levels of asynchrony. </p>
+            <div class="figure">
+            <img src="./figs/ps.png" />
+            
+            </div>
+            <p>However as discussed in <span class="citation">[<a href="#ref-firecaffe">19</a>]</span>, parameter servers tend to be slower and don't scale as well as tree-reduction architectures. By tree-reduction, I mean an infrastructure where collective operations are executed without a higher-level manager process. The message-passing interface (MPI) and its collective communication operations are typical examples. I particularly appreciate this setting given that it stays close to the math, and it enables a lot of engineering optimizations. For example, one could choose the reduction algorithm based on the network topology, include specialzed device-to-device communication routines, and even truly take advantage of fast interconnect hardware. One caveat: I haven't (yet) come across a good asynchronous implementation based on tree-reductions.</p>
+            <h3 id="layer-types">Layer Types</h3>
+            <p>The short story is that all layer types can be supported with a single implementation. After the forward pass, we can compute the gradients of our model and then allreduce them. In particular, nothing special needs to be done for recurrent networks, as long as we include gradients for <strong>all</strong> parameters of the model. (eg, the biases, <span class="math inline">\(\gamma, \beta\)</span> for batch normalization, ...) </p>
+            <p>Few aspects should impact the design of your distributed model. The main one is to (appropriately) consider convolutions. The parallelize particularly well given that they are quite compute heavy with respect to the number of parameters they contain. This is a desirable property of the newtork, since you want to limit the time spent in communication - that's simply overhead - as opposed to computation. In addition to being particularly good with spatially-correlated data, convolutions achieve just that since they re-multiply feature maps all over the input. More details on how to the parallelization of convolutional (and fully-connected) layers is available in <span class="citation">[<a href="#ref-weird-trick">20</a>]</span>. Another point to consider is using momentum-based optimizers with residuals and quantized weights. We will explore this trick in the next subsection.</p>
+            <h3 id="tricks">Tricks</h3>
+            <p>Over the years a few tricks were engineered in order to reduce the overhead induced by communicating and synchronizing updates. I am aware of the following short and non-exhaustive list. If you know more, please let me know !</p>
+            <h4 id="device-to-device-communication">Device-to-Device Communication</h4>
+            <p>When using GPUs, one important detail is to ensure that memory transfers are are done from device-to-device. Avoiding the transfer to host memory is not always easy, but <a href="https://devblogs.nvidia.com/parallelforall/introduction-cuda-aware-mpi/">more</a> and <a href="https://github.com/NVIDIA/nccl">more</a> libraries support it. Note that some GPU cards<a href="#fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a> will not explicitly say that they support GPU-GPU communication, but you can still get it to work.</p>
+            <h4 id="overlapping-computation">Overlapping Computation</h4>
+            <p>If you are using neural networks like the rest of us, you backpropagate the gradients. Then a good idea is to start synchronizing the gradients of the current layer while computing the gradients of the next one.</p>
+            <h4 id="quantized-gradients">Quantized Gradients</h4>
+            <p>Instead of communicating the gradients with full floating-point accuracy, we can use reduced precision. Tim Dettmers <span class="citation">[<a href="#ref-quant-8bit">21</a>]</span> suggests and algorithm to do it, while Nikko Strom <span class="citation">[<a href="#ref-quantized">22</a>]</span> quantizes gradients that are above a certain value. This gave him sparse gradients - which he compressed - and in order to keep part of the information discarded at each minibatch, he builds a <em>residual</em>. This allows even small weight updates to happen, but delays them a little.</p>
+            <h4 id="reduction-algorithm">Reduction Algorithm</h4>
+            <p>As mentioned above, different reduction algorithms work best with different PICe / network topologies. (E.g., ring, butterfly, slimfly, ring-segmented) <span class="citation">[<a href="#ref-opti-mpich">1</a>, <a href="#ref-deepspeech">23</a>–<a href="#ref-ring-segmented">25</a>]</span></p>
+            <h3 id="benchmarks">Benchmarks</h3>
             <h2 id="hogwild-and-distributed-momentum">Hogwild! and Distributed Momentum</h2>
             <h2 id="distributed-synthetic-gradients">Distributed Synthetic Gradients</h2>
             <h2 id="distributed-reinforcement-learning">Distributed Reinforcement Learning</h2>
-            <h1 id="benchmarks">Benchmarks</h1>
+            <h1 id="benchmarks-1">Benchmarks</h1>
             <ul>
             <li>toy problems</li>
             <li>mnist</li>
@@ -325,10 +347,43 @@
             <div id="ref-easgd">
             <p>16. Zhang, S., Choromanska, A.E., LeCun, Y.: Deep learning with elastic averaging sgd. In: Advances in neural information processing systems. pp. 685–693 (2015).</p>
             </div>
+            <div id="ref-downpour">
+            <p>17. Dean, J., Corrado, G., Monga, R., Chen, K., Devin, M., Mao, M., Senior, A., Tucker, P., Yang, K., Le, Q.V., others: Large scale distributed deep networks. In: Advances in neural information processing systems. pp. 1223–1231 (2012).</p>
+            </div>
+            <div id="ref-rudra">
+            <p>18. Gupta, S., Zhang, W., Milthrope, J.: Model accuracy and runtime tradeoff in distributed deep learning. arXiv preprint arXiv:1509.04210. (2015).</p>
+            </div>
+            <div id="ref-firecaffe">
+            <p>19. Iandola, F.N., Ashraf, K., Moskewicz, M.W., Keutzer, K.: FireCaffe: Near-linear acceleration of deep neural network training on compute clusters. arXiv preprint arXiv:1511.00175. (2015).</p>
+            </div>
+            <div id="ref-weird-trick">
+            <p>20. Krizhevsky, A.: One weird trick for parallelizing convolutional neural networks. arXiv preprint arXiv:1404.5997. (2014).</p>
+            </div>
+            <div id="ref-quant-8bit">
+            <p>21. Dettmers, T.: 8-bit approximations for parallelism in deep learning. arXiv preprint arXiv:1511.04561. (2015).</p>
+            </div>
+            <div id="ref-quantized">
+            <p>22. Strom, N.: Scalable distributed dnn training using commodity gpu cloud computing. Presented at the.</p>
+            </div>
+            <div id="ref-deepspeech">
+            <p>23. Amodei, D., Anubhai, R., Battenberg, E., Case, C., Casper, J., Catanzaro, B., Chen, J., Chrzanowski, M., Coates, A., Diamos, G., others: Deep speech 2: End-to-end speech recognition in english and mandarin. arXiv preprint arXiv:1512.02595. (2015).</p>
+            </div>
+            <div id="ref-slimfly">
+            <p>24. Besta, M., Hoefler, T.: Slim fly: A cost effective low-diameter network topology. In: Proceedings of the international conference for high performance computing, networking, storage and analysis. pp. 348–359. IEEE Press (2014).</p>
+            </div>
+            <div id="ref-ring-segmented">
+            <p>25. Patarasuk, P., Yuan, X.: Bandwidth optimal all-reduce algorithms for clusters of workstations. Journal of Parallel and Distributed Computing. 69, 117–124 (2009).</p>
+            </div>
+            </div>
+            <div class="footnotes">
+            <hr />
+            <ol>
+            <li id="fn1"><p>I know that's possible with GeForce 980s, 1080s, and both Maxwell and Pascal Titan Xs.<a href="#fnref1">↩</a></p></li>
+            </ol>
             </div>
             
             <footer class="footer">
-                <p><b>An Overview of Distributed Deep Learning</b> - <i>Seb Arnold</i>, November 23, 2016.</p>
+                <p><b>An Guide to Distributed Deep Learning</b> - <i>Seb Arnold</i>, November 23, 2016.</p>
             </footer>
 
         </div> <!-- /container -->

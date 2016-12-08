@@ -1,4 +1,4 @@
-% An Overview of Distributed Deep Learning
+% An Guide to Distributed Deep Learning
 % Seb Arnold
 % November 23, 2016
 
@@ -98,7 +98,7 @@ $$ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot (\nabla_{W_{t}}\mathcal
 # Beyond Sequentiallity
 <!--
 * Introduce sync and async, nsync
-* Introduce architectures and tricks to make it faster (quantization, ...) (parameter server, mpi, etc...)
+* Introduce architectures and tricks to make it faster (quantization, residuals, ...) (parameter server, mpi, etc...)
     * Tricky points
         * Implementation
         * FC, Convs, and RNNs
@@ -171,7 +171,39 @@ In order to counter the effect of staleness, Zhang & al. @staleness-aware sugges
 
 Finally, there is another view of asynchronous training that is less often explored in the litterature. Each replica executes $k$ optimization steps locally, and keeps an aggregation of the updates. Once those $k$ steps are executed, all replicas synchronize their aggregated update and apply them to the parameters before the $k$ steps. This approach is best used with [Elastic Averaging SGD](https://github.com/twitter/torch-distlearn/blob/master/lua/AllReduceEA.md) @easgd, and limits the frequency at which replicas need to communicate.
 
-## Implementation Tricks
+## Implementation
+Now that we have a decent understanding of the mechanics of distributed deep learning, let's explore possible implementations.  
+
+### Parameter Server vs Tree-reductions
+The first decision to make is how to setup the architecture of the system. In this case, we mainly have two options: parameter server or tree-reductions. In the parameter server case, one machine is responsible for hodling and serving the global parameters to all replicas. As presented in @downpour, there can be several servers holding different parameters of the model to avoid contention, and they can themselves be hierarchically connected (eg, tree-shape in @rudra). One advantage of using parameter servers is that it's easy to implement different levels of asynchrony. \newline
+
+![](./figs/ps.png)
+
+However as discussed in @firecaffe, parameter servers tend to be slower and don't scale as well as tree-reduction architectures. By tree-reduction, I mean an infrastructure where collective operations are executed without a higher-level manager process. The message-passing interface (MPI) and its collective communication operations are typical examples. I particularly appreciate this setting given that it stays close to the math, and it enables a lot of engineering optimizations. For example, one could choose the reduction algorithm based on the network topology, include specialzed device-to-device communication routines, and even truly take advantage of fast interconnect hardware. One caveat: I haven't (yet) come across a good asynchronous implementation based on tree-reductions.
+
+### Layer Types
+The short story is that all layer types can be supported with a single implementation. After the forward pass, we can compute the gradients of our model and then allreduce them. In particular, nothing special needs to be done for recurrent networks, as long as we include gradients for **all** parameters of the model. (eg, the biases, $\gamma, \beta$ for batch normalization, ...) \newline
+
+Few aspects should impact the design of your distributed model. The main one is to (appropriately) consider convolutions. The parallelize particularly well given that they are quite compute heavy with respect to the number of parameters they contain. This is a desirable property of the newtork, since you want to limit the time spent in communication - that's simply overhead - as opposed to computation. In addition to being particularly good with spatially-correlated data, convolutions achieve just that since they re-multiply feature maps all over the input. More details on how to the parallelization of convolutional (and fully-connected) layers is available in @weird-trick. Another point to consider is using momentum-based optimizers with residuals and quantized weights. We will explore this trick in the next subsection.
+
+### Tricks
+Over the years a few tricks were engineered in order to reduce the overhead induced by communicating and synchronizing updates. I am aware of the following short and non-exhaustive list. If you know more, please let me know !
+
+#### Device-to-Device Communication
+When using GPUs, one important detail is to ensure that memory transfers are are done from device-to-device. Avoiding the transfer to host memory is not always easy, but [more](https://devblogs.nvidia.com/parallelforall/introduction-cuda-aware-mpi/) and [more](https://github.com/NVIDIA/nccl) libraries support it. Note that some GPU cards [^1] will not explicitly say that they support GPU-GPU communication, but you can still get it to work.
+
+[^1]: I know that's possible with GeForce 980s, 1080s, and both Maxwell and Pascal Titan Xs.
+
+#### Overlapping Computation
+If you are using neural networks like the rest of us, you backpropagate the gradients. Then a good idea is to start synchronizing the gradients of the current layer while computing the gradients of the next one. 
+
+#### Quantized Gradients
+Instead of communicating the gradients with full floating-point accuracy, we can use reduced precision. Tim Dettmers @quant-8bit suggests and algorithm to do it, while Nikko Strom @quantized quantizes gradients that are above a certain value. This gave him sparse gradients - which he compressed - and in order to keep part of the information discarded at each minibatch, he builds a *residual*. This allows even small weight updates to happen, but delays them a little.  
+
+#### Reduction Algorithm 
+As mentioned above, different reduction algorithms work best with different PICe / network topologies. (E.g., ring, butterfly, slimfly, ring-segmented) [@deepspeech; @opti-mpich; @slimfly; @ring-segmented] 
+
+### Benchmarks
 
 ## Hogwild! and Distributed Momentum 
 
