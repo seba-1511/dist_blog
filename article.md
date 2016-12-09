@@ -206,14 +206,14 @@ As mentioned above, different reduction algorithms work best with different PICe
 ### Benchmarks
 The last implementation detail I would like to mention is the way to effectively benchmark a distributed framework. There is a ferocious battle between framework developers on who is fastest and reported results might be a bit confusing. In my opinion, since we are trying to mimic the behaviour of a sequential implementation we should be looking at scalability **with a fixed overall batch size** $B_G$. That means we observe the speedup (time to convergence, time per epoch/batch, loss error) as we increase the number of computational devices, but make sure to rescale the local batch size by the number of replicas such that $B_G = R \cdot M$ stays constant across experiments.  
 
-# Recent Advancements
+<!--# Recent Advancements-->
 
 
-## Hogwild! and Distributed Momentum 
+<!--## Hogwild! and Asynchronous Momentum -->
 
-## Distributed Synthetic Gradients
+<!--## Distributed Synthetic Gradients-->
 
-## Distributed Reinforcement Learning
+<!--## Distributed Reinforcement Learning-->
 
 
 
@@ -225,12 +225,19 @@ The last implementation detail I would like to mention is the way to effectively
 <!--# A Live Example-->
 
 # Conclusion
+Harnessing the power of distributed deep learning is not as difficult as it seems, and can lead to some drastic performance increase. This power should be available to everyone and not just large industrial companies. In addition, having a good understanding of how parallelized learning works might allow you to take advantage of some nice properties that would be hard to replicate in a sequential setup. Finally, I hope you learn something new through this article, and if not that I was able to point you to some interesting papers.
 
 ## Acknowledgements
 I'd like to thank Prof. Chunming Wang, Prof. Valero-Cuevas, and Pranav Rajpurkar for comments on the article and helpful discussions. 
 
 ## Citation
+Please cite this article as
 
+~~~
+Arnold, Sébastien "A Guide to Distributed Deep Learning", seba1511.com, 2016.
+~~~
+
+#### BibTeX
 ~~~
     @misc{arnold2016ddl,
       author = {Arnold, Sébastien},
@@ -244,8 +251,6 @@ I'd like to thank Prof. Chunming Wang, Prof. Valero-Cuevas, and Pranav Rajpurkar
 Some of the relevant literature for this article. <br />
 
 <!--http://www.benfrederickson.com/numerical-optimization/-->
-
-<!--http://sebastianruder.com/optimizing-gradient-descent/-->
 
 <!--http://lossfunctions.tumblr.com/-->
 

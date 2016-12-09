@@ -282,19 +282,23 @@
                     <p>As mentioned above, different reduction algorithms work best with different PICe / network topologies. (E.g., ring, butterfly, slimfly, ring-segmented) <span class="citation">[<a href="#ref-opti-mpich">1</a>, <a href="#ref-deepspeech">23</a>–<a href="#ref-ring-segmented">25</a>]</span></p>
                     <h3 id="benchmarks">Benchmarks</h3>
                     <p>The last implementation detail I would like to mention is the way to effectively benchmark a distributed framework. There is a ferocious battle between framework developers on who is fastest and reported results might be a bit confusing. In my opinion, since we are trying to mimic the behaviour of a sequential implementation we should be looking at scalability <strong>with a fixed overall batch size</strong> <span class="math inline">\(B_G\)</span>. That means we observe the speedup (time to convergence, time per epoch/batch, loss error) as we increase the number of computational devices, but make sure to rescale the local batch size by the number of replicas such that <span class="math inline">\(B_G = R \cdot M\)</span> stays constant across experiments.</p>
-                    <h1 id="recent-advancements">Recent Advancements</h1>
-                    <h2 id="hogwild-and-distributed-momentum">Hogwild! and Distributed Momentum</h2>
-                    <h2 id="distributed-synthetic-gradients">Distributed Synthetic Gradients</h2>
-                    <h2 id="distributed-reinforcement-learning">Distributed Reinforcement Learning</h2>
+                    <!--# Recent Advancements-->
+                    <!--## Hogwild! and Asynchronous Momentum -->
+                    <!--## Distributed Synthetic Gradients-->
+                    <!--## Distributed Reinforcement Learning-->
                     <!--# Benchmarks-->
                     <!--* toy problems-->
                     <!--* mnist -->
                     <!--* cifar10-->
                     <!--# A Live Example-->
                     <h1 id="conclusion">Conclusion</h1>
+                    <p>Harnessing the power of distributed deep learning is not as difficult as it seems, and can lead to some drastic performance increase. This power should be available to everyone and not just large industrial companies. In addition, having a good understanding of how parallelized learning works might allow you to take advantage of some nice properties that would be hard to replicate in a sequential setup. Finally, I hope you learn something new through this article, and if not that I was able to point you to some interesting papers.</p>
                     <h2 id="acknowledgements">Acknowledgements</h2>
                     <p>I'd like to thank Prof. Chunming Wang, Prof. Valero-Cuevas, and Pranav Rajpurkar for comments on the article and helpful discussions.</p>
                     <h2 id="citation">Citation</h2>
+                    <p>Please cite this article as</p>
+                    <pre><code>Arnold, Sébastien &quot;A Guide to Distributed Deep Learning&quot;, seba1511.com, 2016.</code></pre>
+                    <h4 id="bibtex">BibTeX</h4>
                     <pre><code>    @misc{arnold2016ddl,
                           author = {Arnold, Sébastien},
                           title = {A Guide to Distributed Deep Learning},
@@ -304,7 +308,6 @@
                     <h1 id="references">References</h1>
                     <p>Some of the relevant literature for this article. <br /></p>
                     <!--http://www.benfrederickson.com/numerical-optimization/-->
-                    <!--http://sebastianruder.com/optimizing-gradient-descent/-->
                     <!--http://lossfunctions.tumblr.com/-->
                     <!--http://www.denizyuret.com/2015/03/alec-radfords-animations-for.html-->
                     <!--https://www.allinea.com/blog/201610/deep-learning-episode-3-supercomputer-vs-pong-->
@@ -401,7 +404,6 @@
                             <li><a href="#introduction">Introduction</a></li>
                             <li><a href="#the-problem">The Problem</a></li>
                             <li><a href="#beyond-sequentiallity">Beyond Sequentiallity</a></li>
-                            <li><a href="#recent-advancements">Recent Advancements</a></li>
                             <li><a href="#conclusion">Conclusion</a></li>
                             <li><a href="#references">References</a></li>
                             </ul>
