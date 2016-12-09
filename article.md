@@ -116,7 +116,7 @@ There are two approaches to parallelize the training of neural networks: model p
 Data parallelism is rather intuitive; the data is partitioned across computational devices, and each device holds a copy of the learning model - called a replica or sometimes worker. Each replica computes gradients on its shard of the data, and the gradients are combined to update the model parameters. Different ways of combining gradients lead to different algorithms and results, so let's have a closer look. 
 
 ## Synchronous Distributed SGD
-In the sychronous setting, all replicas average all of their gradients at every timestep (minibatch). Doing so, we're effectively multiplying the batch size $M$ by the number of replicas $R$, so that our **overall minibatch** size is $R \cdot M$. This has several advantages.
+In the sychronous setting, all replicas average all of their gradients at every timestep (minibatch). Doing so, we're effectively multiplying the batch size $M$ by the number of replicas $R$, so that our **overall minibatch** size is $B_G = R \cdot M$. This has several advantages.
 
 1. The computation is completely deterministic. 
 2. We can work with fairly large models and large batch sizes even on memory-limited GPUs. 
@@ -204,6 +204,10 @@ Instead of communicating the gradients with full floating-point accuracy, we can
 As mentioned above, different reduction algorithms work best with different PICe / network topologies. (E.g., ring, butterfly, slimfly, ring-segmented) [@deepspeech; @opti-mpich; @slimfly; @ring-segmented] 
 
 ### Benchmarks
+The last implementation detail I would like to mention is the way to effectively benchmark a distributed framework. There is a ferocious battle between framework developers on who is fastest and reported results might be a bit confusing. In my opinion, since we are trying to mimic the behaviour of a sequential implementation we should be looking at scalability **with a fixed overall batch size** $B_G$. That means we observe the speedup (time to convergence, time per epoch/batch, loss error) as we increase the number of computational devices, but make sure to rescale the local batch size by the number of replicas such that $B_G = R \cdot M$ stays constant across experiments.  
+
+# Recent Advancements
+
 
 ## Hogwild! and Distributed Momentum 
 
@@ -213,26 +217,38 @@ As mentioned above, different reduction algorithms work best with different PICe
 
 
 
-# Benchmarks
-* toy problems
-* mnist 
-* cifar10
+<!--# Benchmarks-->
+<!--* toy problems-->
+<!--* mnist -->
+<!--* cifar10-->
 
-# A Live Example
+<!--# A Live Example-->
 
-# Acknowledgements
+# Conclusion
 
-# Citation
+## Acknowledgements
+I'd like to thank Prof. Chunming Wang, Prof. Valero-Cuevas, and Pranav Rajpurkar for comments on the article and helpful discussions. 
+
+## Citation
+
+~~~
+    @misc{arnold2016ddl,
+      author = {Arnold, Sébastien},
+      title = {A Guide to Distributed Deep Learning},
+      year = {2016},
+      howpublished = {https://seba1511.com/dist_blog/}
+    }
+~~~
 
 # References
 Some of the relevant literature for this article. <br />
 
-http://www.benfrederickson.com/numerical-optimization/
+<!--http://www.benfrederickson.com/numerical-optimization/-->
 
-http://sebastianruder.com/optimizing-gradient-descent/
+<!--http://sebastianruder.com/optimizing-gradient-descent/-->
 
-http://lossfunctions.tumblr.com/
+<!--http://lossfunctions.tumblr.com/-->
 
-http://www.denizyuret.com/2015/03/alec-radfords-animations-for.html
+<!--http://www.denizyuret.com/2015/03/alec-radfords-animations-for.html-->
 
-https://www.allinea.com/blog/201610/deep-learning-episode-3-supercomputer-vs-pong
+<!--https://www.allinea.com/blog/201610/deep-learning-episode-3-supercomputer-vs-pong-->
