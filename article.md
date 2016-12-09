@@ -228,7 +228,7 @@ The last implementation detail I would like to mention is the way to effectively
 Harnessing the power of distributed deep learning is not as difficult as it seems, and can lead to some drastic performance increase. This power should be available to everyone and not just large industrial companies. In addition, having a good understanding of how parallelized learning works might allow you to take advantage of some nice properties that would be hard to replicate in a sequential setup. Finally, I hope you learn something new through this article, and if not that I was able to point you to some interesting papers.
 
 ## Acknowledgements
-I'd like to thank Prof. Chunming Wang, Prof. Valero-Cuevas, and Pranav Rajpurkar for comments on the article and helpful discussions. 
+I'd like to thank Prof. Chunming Wang, Prof. Valero-Cuevas, and Pranav Rajpurkar for comments on the article and helpful discussions. I would also like to thank Prof. Crowley for supervising the semester that allowed my to write this work.
 
 ## Citation
 Please cite this article as
