@@ -1,11 +1,11 @@
-% A Guide to Distributed Deep Learning
+% An Introduction to Distributed Deep Learning
 % Seb Arnold
-% November 23, 2016
+% December 15, 2016
 
 # Introduction
-This blog post introduces the fundamentals of distributed deep learning and presents some real-world applications. With the democratization of deep learning methods in the last decade, large - and small ! - companies have invested a lot of efforts into distributing the training procedure of neural networks. Their hope: drastically reduce the time to train large models on even larger datasets. Unfortunately while every commerical product takes advantage of these techniques, it is still difficult for practitioners and researchers to use them in their everyday projects. This article aims to change that by providing a theoretical and practical overview. \newline
+This blog post introduces the fundamentals of distributed deep learning and presents some real-world applications. With the democratisation of deep learning methods in the last decade, large - and small ! - companies have invested a lot of efforts into distributing the training procedure of neural networks. Their hope: drastically reduce the time to train large models on even larger datasets. Unfortunately, while every commercial product takes advantage of these techniques, it is still difficult for practitioners and researchers to use them in their everyday projects. This article aims to change that by providing a theoretical and practical overview. \newline
 
-Last year, I was lucky to intern at Nervana Systems where I was able to expand their distributed effort. During this 1 year internship, I familiarized myself with a lot of aspects of distributed deep learning and was able to work on topics ranging from implementing efficient GPU-GPU Allreduce routines @opti-mpich to replicating Deepind's Gorila @gorila. I found this topic so fascinating that I am now researching novel techniques for distributed optimization with Prof. [Chunming Wang](http://dornsife.usc.edu/labs/msl/faculty-and-staff/), and applying them to robotic control @comp-trpo-cem with Prof. [Francisco Valero-Cuevas](http://valerolab.org/about/). 
+Last year, as an intern at Nervana Systems I was able to expand their distributed effort. During this 1 year internship, I familiarised myself with quite a number of aspects of distributed deep learning and was able to work on topics ranging from implementing efficient GPU-GPU Allreduce routines @opti-mpich to replicating Deepind's Gorila @gorila. I found this topic so fascinating that I am now researching novel techniques for distributed optimization with Prof. [Chunming Wang](http://dornsife.usc.edu/labs/msl/faculty-and-staff/), and applying them to robotic control @comp-trpo-cem with Prof. [Francisco Valero-Cuevas](http://valerolab.org/about/). 
 
 # The Problem 
 <!--
@@ -19,10 +19,10 @@ Let's first define the problem that we would like to solve. We are trying to tra
 
 More formally, we can represent our dataset as a distribution $\chi$ from which we sample $N$ tuples of inputs and labels $(x_i, y_i) \sim \chi$. Then, given a loss function $\mathcal{L}$ (some common choices include the [mean square error](https://en.wikipedia.org/wiki/Mean_squared_error), the [KL divergence](https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence), or the [negative log-likelihood]()) we want to find the optimal set of weights $W_{opt}$ of our deep model $F$. That is,
 
-$$W_{opt} = \arg \min_{W} \mathbb{E}_{(x, y) \sim \chi}[L(y, F(x; W))] $$
+$$W_{opt} = \arg \min_{W} \mathbb{E}_{(x, y) \sim \chi}[\mathcal{L}(y, F(x; W))] $$
 
 \begin{note}
-In the above formulation we are not separating the dataset in train, validation, and test sets. However you need to do it !\newline
+In the above formulation we are not separating the dataset in train, validation, and test sets. However, you need to do it !\newline
 \end{note} 
 
 In this case, SGD will iteratively update the weights $W_t$ at timestep $t$ with $W_{t+1} = W_t - \alpha \cdot \nabla_{W_t} \mathcal{L}(y_i, F(x_i; W_t))$. Here, $\alpha$ is the learning rate and can be interpreted as the size of the step we are taking in the direction of the negative gradient. As we will see later there are algorithms that try to adaptively set the learning rate, but generally speaking it needs to be chosen by the human experimenter. \newline
@@ -35,7 +35,7 @@ One important thing to note is that in practice the gradient is evaluated over a
 However, a very large batch size will simply result in computational overhead since your gradient will not significantly improve. Therefore, it is usual to keep it between 32 and 1024 samples, even when our dataset contains millions of examples.
 
 ## Variants of SGD
-As we will now see, several variants of the gradient descent algorithm exist. They all try to improve the quality of the gradient by including more or less sophisticated heuristics. For a more in depth treatment, I would recommend [Sebastian Ruder's excellent blog post](http://sebastianruder.com/optimizing-gradient-descent/) and the [CS231n web page](http://cs231n.github.io/neural-networks-3/) on optimization.
+As we will now see, several variants of the gradient descent algorithm exist. They all try to improve the quality of the gradient by including more or less sophisticated heuristics. For a more in-depth treatment, I would recommend [Sebastian Ruder's excellent blog post](http://sebastianruder.com/optimizing-gradient-descent/) and the [CS231n web page](http://cs231n.github.io/neural-networks-3/) on optimization.
 
 ### Adding Momentum
 Momentum techniques simply keep track of a weighted average of previous updates, and apply it to the current one. This is akin to the momentum gained by a ball rolling downhill. In the following formulas, $\mu$ is the momentum parameter - how much previous updates we want to include in the current one.
@@ -116,7 +116,7 @@ There are two approaches to parallelize the training of neural networks: model p
 Data parallelism is rather intuitive; the data is partitioned across computational devices, and each device holds a copy of the learning model - called a replica or sometimes worker. Each replica computes gradients on its shard of the data, and the gradients are combined to update the model parameters. Different ways of combining gradients lead to different algorithms and results, so let's have a closer look. 
 
 ## Synchronous Distributed SGD
-In the sychronous setting, all replicas average all of their gradients at every timestep (minibatch). Doing so, we're effectively multiplying the batch size $M$ by the number of replicas $R$, so that our **overall minibatch** size is $B_G = R \cdot M$. This has several advantages.
+In the synchronous setting, all replicas average all of their gradients at every timestep (minibatch). Doing so, we're effectively multiplying the batch size $M$ by the number of replicas $R$, so that our **overall minibatch** size is $B_G = R \cdot M$. This has several advantages.
 
 1. The computation is completely deterministic. 
 2. We can work with fairly large models and large batch sizes even on memory-limited GPUs. 
@@ -124,7 +124,7 @@ In the sychronous setting, all replicas average all of their gradients at every 
 
 ![](./figs/sync.gif)
 
-This path to parallelism puts a strong emphasis on HPC, and the hardware that in use. In fact, it will be challenging to obtain a decent speedup unless you are using industrial hardware. And even so the choice of communication library, reduction algorithm, and other implementation details (e.g., data loading and transformation, model size, ...) will have a strong effect on the kind of performance gain you will encounter. \newline
+This path to parallelism puts a strong emphasis on HPC, and the hardware that is in use. In fact, it will be challenging to obtain a decent speedup unless you are using industrial hardware. And even if you were using such a hardware, the choice of communication library, reduction algorithm, and other implementation details (e.g., data loading and transformation, model size, ...) will have a strong effect on the kind of performance gain you will encounter. \newline
 
 The following pseudo-code describes synchronous distributed SGD at the replica-level, for $R$ replicas, $T$ timesteps, and $M$ global batch size.
 
@@ -163,7 +163,7 @@ The asynchronous setting is slightly more interesting from a mathematical perspe
 \end{algorithm}
 ~~~
 
-The advantage of adding asynchrony to our training is that replicas can work at their own pace, without waiting for others to finish computing their gradients. However, this is also where the trickiness resides; we have no guarantee that while one replica is computing the gradients with respect to a set of parameters, the global parameters haven't been updated by another one. If this happens, the global parameters will be updated with **stale** gradients - gradients computed with old version of the parameters.
+The advantage of adding asynchrony to our training is that replicas can work at their own pace, without waiting for others to finish computing their gradients. However, this is also where the trickiness resides; we have no guarantee that while one replica is computing the gradients with respect to a set of parameters, the global parameters will not have been updated by another one. If this happens, the global parameters will be updated with **stale** gradients - gradients computed with old versions of the parameters. 
 
 ![](./figs/async.gif)
 
@@ -179,12 +179,12 @@ The first decision to make is how to setup the architecture of the system. In th
 
 ![](./figs/ps.png)
 
-However as discussed in @firecaffe, parameter servers tend to be slower and don't scale as well as tree-reduction architectures. By tree-reduction, I mean an infrastructure where collective operations are executed without a higher-level manager process. The message-passing interface (MPI) and its collective communication operations are typical examples. I particularly appreciate this setting given that it stays close to the math, and it enables a lot of engineering optimizations. For example, one could choose the reduction algorithm based on the network topology, include specialzed device-to-device communication routines, and even truly take advantage of fast interconnect hardware. One caveat: I haven't (yet) come across a good asynchronous implementation based on tree-reductions.
+However as discussed in @firecaffe, parameter servers tend to be slower and don't scale as well as tree-reduction architectures. By tree-reduction, I mean an infrastructure where collective operations are executed without a higher-level manager process. The message-passing interface (MPI) and its collective communication operations are typical examples. I particularly appreciate this setting given that it stays close to the math, and it enables a lot of engineering optimizations. For example, one could choose the reduction algorithm based on the network topology, include specialized device-to-device communication routines, and even truly take advantage of fast interconnect hardware. One caveat: I haven't (yet) come across a good asynchronous implementation based on tree-reductions.
 
 ### Layer Types
-The short story is that all layer types can be supported with a single implementation. After the forward pass, we can compute the gradients of our model and then allreduce them. In particular, nothing special needs to be done for recurrent networks, as long as we include gradients for **all** parameters of the model. (eg, the biases, $\gamma, \beta$ for batch normalization, ...) \newline
+In a nutshell, all layer types can be supported with a single implementation. After the forward pass, we can compute the gradients of our model and then allreduce them. In particular, nothing special needs to be done for recurrent networks, as long as we include gradients for **all** parameters of the model. (eg, the biases, $\gamma, \beta$ for batch normalization, ...) \newline
 
-Few aspects should impact the design of your distributed model. The main one is to (appropriately) consider convolutions. The parallelize particularly well given that they are quite compute heavy with respect to the number of parameters they contain. This is a desirable property of the newtork, since you want to limit the time spent in communication - that's simply overhead - as opposed to computation. In addition to being particularly good with spatially-correlated data, convolutions achieve just that since they re-multiply feature maps all over the input. More details on how to the parallelization of convolutional (and fully-connected) layers is available in @weird-trick. Another point to consider is using momentum-based optimizers with residuals and quantized weights. We will explore this trick in the next subsection.
+Few aspects should impact the design of your distributed model. The main one is to (appropriately) consider convolutions. They parallelize particularly well given that they are quite compute heavy with respect to the number of parameters they contain. This is a desirable property of the network, since you want to limit the time spent in communication - that's simply overhead - as opposed to computation. In addition to being particularly good with spatially-correlated data, convolutions achieve just that since they re-multiply feature maps all over the input. More details on how to parallelize convolutional (and fully-connected) layers is available in @weird-trick. Another point to consider is using momentum-based optimizers with residuals and quantized weights. We will explore this trick in the next subsection.
 
 ### Tricks
 Over the years a few tricks were engineered in order to reduce the overhead induced by communicating and synchronizing updates. I am aware of the following short and non-exhaustive list. If you know more, please let me know !
@@ -192,13 +192,13 @@ Over the years a few tricks were engineered in order to reduce the overhead indu
 #### Device-to-Device Communication
 When using GPUs, one important detail is to ensure that memory transfers are are done from device-to-device. Avoiding the transfer to host memory is not always easy, but [more](https://devblogs.nvidia.com/parallelforall/introduction-cuda-aware-mpi/) and [more](https://github.com/NVIDIA/nccl) libraries support it. Note that some GPU cards [^1] will not explicitly say that they support GPU-GPU communication, but you can still get it to work.
 
-[^1]: I know that's possible with GeForce 980s, 1080s, and both Maxwell and Pascal Titan Xs.
+[^1]: I know that it is possible with GeForce 980s, 1080s, and both Maxwell and Pascal Titan Xs.
 
 #### Overlapping Computation
 If you are using neural networks like the rest of us, you backpropagate the gradients. Then a good idea is to start synchronizing the gradients of the current layer while computing the gradients of the next one. 
 
 #### Quantized Gradients
-Instead of communicating the gradients with full floating-point accuracy, we can use reduced precision. Tim Dettmers @quant-8bit suggests and algorithm to do it, while Nikko Strom @quantized quantizes gradients that are above a certain value. This gave him sparse gradients - which he compressed - and in order to keep part of the information discarded at each minibatch, he builds a *residual*. This allows even small weight updates to happen, but delays them a little.  
+Instead of communicating the gradients with full floating-point accuracy, we can use reduced precision. Tim Dettmers @quant-8bit suggests an algorithm to do it, while Nikko Strom @quantized quantizes gradients that are above a certain value. This gave him sparse gradients - which he compressed - and in order to keep part of the information discarded at each minibatch, he builds a *residual*. This allows even small weight updates to happen, but delays them a little.  
 
 #### Reduction Algorithm 
 As mentioned above, different reduction algorithms work best with different PICe / network topologies. (E.g., ring, butterfly, slimfly, ring-segmented) [@deepspeech; @opti-mpich; @slimfly; @ring-segmented] 
@@ -225,23 +225,23 @@ The last implementation detail I would like to mention is the way to effectively
 <!--# A Live Example-->
 
 # Conclusion
-Harnessing the power of distributed deep learning is not as difficult as it seems, and can lead to some drastic performance increase. This power should be available to everyone and not just large industrial companies. In addition, having a good understanding of how parallelized learning works might allow you to take advantage of some nice properties that would be hard to replicate in a sequential setup. Finally, I hope you learn something new through this article, and if not that I was able to point you to some interesting papers.
+Harnessing the power of distributed deep learning is not as difficult as it seems, and can lead to some drastic performance increase. This power should be available to everyone and not just large industrial companies. In addition, having a good understanding of how parallelized learning works might allow you to take advantage of some nice properties that would be hard to replicate in a sequential setup. Finally, I hope you learned something new through this article or, at least, you have been directed to some interesting papers.
 
 ## Acknowledgements
-I'd like to thank Prof. Chunming Wang, Prof. Valero-Cuevas, and Pranav Rajpurkar for comments on the article and helpful discussions. I would also like to thank Prof. Crowley for supervising the semester that allowed my to write this work.
+I'd like to thank Prof. Chunming Wang, Prof. Valero-Cuevas, and Pranav Rajpurkar for comments on the article and helpful discussions. I would also like to thank Prof. Crowley for supervising the semester that allowed me to write this work.
 
 ## Citation
 Please cite this article as
 
 ~~~
-Arnold, Sébastien "A Guide to Distributed Deep Learning", seba1511.com, 2016.
+Arnold, Sébastien "An Introduction to Distributed Deep Learning", seba1511.com, 2016.
 ~~~
 
 #### BibTeX
 ~~~
     @misc{arnold2016ddl,
       author = {Arnold, Sébastien},
-      title = {A Guide to Distributed Deep Learning},
+      title = {An Introduction to Distributed Deep Learning},
       year = {2016},
       howpublished = {https://seba1511.com/dist_blog/}
     }
