@@ -2,6 +2,8 @@
 % Seb Arnold
 % December 15, 2016
 
+**Tip**: This article is also [available in PDF](http://seba1511.com/dist_blog/article.pdf). (without animations)
+
 # Introduction
 This blog post introduces the fundamentals of distributed deep learning and presents some real-world applications. With the democratisation of deep learning methods in the last decade, large - and small ! - companies have invested a lot of efforts into distributing the training procedure of neural networks. Their hope: drastically reduce the time to train large models on even larger datasets. Unfortunately, while every commercial product takes advantage of these techniques, it is still difficult for practitioners and researchers to use them in their everyday projects. This article aims to change that by providing a theoretical and practical overview. \newline
 
