@@ -167,10 +167,25 @@
                     <p>As we will now see, several variants of the gradient descent algorithm exist. They all try to improve the quality of the gradient by including more or less sophisticated heuristics. For a more in-depth treatment, I would recommend <a href="http://sebastianruder.com/optimizing-gradient-descent/">Sebastian Ruder's excellent blog post</a> and the <a href="http://cs231n.github.io/neural-networks-3/">CS231n web page</a> on optimization.</p>
                     <h3 id="adding-momentum">Adding Momentum</h3>
                     <p>Momentum techniques simply keep track of a weighted average of previous updates, and apply it to the current one. This is akin to the momentum gained by a ball rolling downhill. In the following formulas, <span class="math inline">\(\mu\)</span> is the momentum parameter - how much previous updates we want to include in the current one.</p>
-                    <h4 id="momentum">Momentum</h4>
-                    <p><span class="math display">\[ v_{t+1} = \mu \cdot v_t + \alpha \cdot \nabla \mathcal{L}\]</span> <span class="math display">\[ W_{t+1} = W_t - v_{t+1} \]</span></p>
-                    <h4 id="nesterov-momentum-or-accelerated-gradient-nesterov">Nesterov Momentum or Accelerated Gradient <span class="citation">[<a href="#ref-nesterov">4</a>]</span></h4>
-                    <p><span class="math display">\[ v_{t+1} = \mu \cdot (\mu \cdot v + \alpha \cdot \nabla \mathcal{L}) + \alpha \cdot \nabla \mathcal{L} \]</span> <span class="math display">\[ W_{t+1} = W_t - v_{t+1} \]</span></p>
+                    <table>
+                    <caption>Momentum Flavors of SGD</caption>
+                    <colgroup>
+                    <col width="33%" />
+                    <col width="66%" />
+                    </colgroup>
+                    <thead>
+                    <tr class="header">
+                    <th>Momentum</th>
+                    <th>Nesterov Momentum or Accelerated Gradient <span class="citation">[<a href="#ref-nesterov">4</a>]</span></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr class="odd">
+                    <td><span class="math display">\[ v_{t+1} = \mu \cdot v_t + \alpha \cdot \nabla \mathcal{L}\]</span> <span class="math display">\[ W_{t+1} = W_t - v_{t+1} \]</span></td>
+                    <td><span class="math display">\[ v_{t+1} = \mu \cdot (\mu \cdot v + \alpha \cdot \nabla \mathcal{L}) + \alpha \cdot \nabla \mathcal{L} \]</span> <span class="math display">\[ W_{t+1} = W_t - v_{t+1} \]</span></td>
+                    </tr>
+                    </tbody>
+                    </table>
                     <p>Nesterov's accelerated gradient adds <em>momentum to the momentum</em> in an attempt to look ahead for what is coming.</p>
                     <h3 id="adaptive-learning-rates">Adaptive Learning Rates</h3>
                     <p>Finding good learning rates can be an expensive process, and a skill often deemed closer to art or dark magic. The following techniques try to alleviate this problem by automatically setting the learning rate, sometimes on a per-parameter basis. The following descriptions are inspired by <a href="http://neon.nervanasys.com/index.html/optimizers.html">Nervana's implementation</a>.</p>
@@ -178,23 +193,57 @@
                     In the following formulas, $\epsilon$ is a constant to ensure numerical stability, and $\mu$ is the decay constant of the algorithm, how fast we decrease the learning rate as we converge.
                     
                      </p></div>
-                    <h4 id="adagrad-adagrad">Adagrad <span class="citation">[<a href="#ref-adagrad">5</a>]</span></h4>
-                    <p><span class="math display">\[ s_{t+1} = s_t + (\nabla \mathcal{L})^2 \]</span> <span class="math display">\[ W_{t+1} = W_t - \frac{\alpha \cdot \nabla \mathcal{L}}{\sqrt{s_{t+1} + \epsilon}}\]</span></p>
-                    <h4 id="rmsprop-rmsprop">RMSProp <span class="citation">[<a href="#ref-rmsprop">6</a>]</span></h4>
-                    <p><span class="math display">\[ s_{t+1} = \mu \cdot s_t + (1 - \mu) \cdot (\nabla \mathcal{L})^2 \]</span> <span class="math display">\[ W_{t+1} = W_t - \frac{\alpha \cdot \nabla \mathcal{L}}{\sqrt{s_{t+1} + \epsilon} + \epsilon}\]</span></p>
-                    <h4 id="adadelta-adadelta">Adadelta <span class="citation">[<a href="#ref-adadelta">7</a>]</span></h4>
-                    <p><span class="math display">\[ \lambda_{t+1} = \lambda_t \cdot \mu + (1 - \mu) \cdot (\nabla \mathcal{L})^2 \]</span> <span class="math display">\[ \Delta W_{t+1} = \nabla \mathcal{L} \cdot \sqrt{\frac{\delta_{t} + \epsilon}{\lambda_{t+1} + \epsilon}}\]</span> <span class="math display">\[ \delta_{t+1} = \delta_t \cdot \mu + (1 - \mu) \cdot (\Delta W_{t+1})^2 \]</span> <span class="math display">\[ W_{t+1} = W_t - \Delta W_{t+1}\]</span></p>
-                    <h4 id="adam-adam">Adam <span class="citation">[<a href="#ref-adam">8</a>]</span></h4>
-                    <p><span class="math display">\[ m_{t+1} = m_t \cdot \beta_m + (1 - \beta_m) \cdot \nabla \mathcal{L}\]</span> <span class="math display">\[ v_{t+1} = v_t \cdot \beta_v + (1 - \beta_v) \cdot (\nabla \mathcal{L})^2\]</span> <span class="math display">\[ l_{t+1} = \alpha \cdot \frac{\sqrt{1 - \beta_v^p}}{1 - \beta_m^p} \]</span> <span class="math display">\[ W_{t+1} = W_t - l_{t+1} \frac{m_{t+1}}{\sqrt{v_{t+1}} + \epsilon} \]</span></p>
+                    <table style="width:100%;">
+                    <caption>Adaptively Scaling the Learning Rate</caption>
+                    <colgroup>
+                    <col width="45%" />
+                    <col width="54%" />
+                    </colgroup>
+                    <thead>
+                    <tr class="header">
+                    <th>Adagrad <span class="citation">[<a href="#ref-adagrad">5</a>]</span></th>
+                    <th>RMSProp <span class="citation">[<a href="#ref-rmsprop">6</a>]</span></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr class="odd">
+                    <td><span class="math display">\[ s_{t+1} = s_t + (\nabla \mathcal{L})^2 \]</span> <span class="math display">\[ W_{t+1} = W_t - \frac{\alpha \cdot \nabla \mathcal{L}}{\sqrt{s_{t+1} + \epsilon}}\]</span></td>
+                    <td><span class="math display">\[ s_{t+1} = \mu \cdot s_t + (1 - \mu) \cdot (\nabla \mathcal{L})^2 \]</span> <span class="math display">\[ W_{t+1} = W_t - \frac{\alpha \cdot \nabla \mathcal{L}}{\sqrt{s_{t+1} + \epsilon} + \epsilon}\]</span></td>
+                    </tr>
+                    <tr class="even">
+                    <td><strong>Adadelta <span class="citation">[<a href="#ref-adadelta">7</a>]</span></strong></td>
+                    <td><strong>Adam <span class="citation">[<a href="#ref-adam">8</a>]</span></strong></td>
+                    </tr>
+                    <tr class="odd">
+                    <td><span class="math display">\[ \lambda_{t+1} = \lambda_t \cdot \mu + (1 - \mu) \cdot (\nabla \mathcal{L})^2 \]</span> <span class="math display">\[ \Delta W_{t+1} = \nabla \mathcal{L} \cdot \sqrt{\frac{\delta_{t} + \epsilon}{\lambda_{t+1} + \epsilon}}\]</span> <span class="math display">\[ \delta_{t+1} = \delta_t \cdot \mu + (1 - \mu) \cdot (\Delta W_{t+1})^2 \]</span> <span class="math display">\[ W_{t+1} = W_t - \Delta W_{t+1}\]</span></td>
+                    <td><span class="math display">\[ m_{t+1} = m_t \cdot \beta_m + (1 - \beta_m) \cdot \nabla \mathcal{L}\]</span> <span class="math display">\[ v_{t+1} = v_t \cdot \beta_v + (1 - \beta_v) \cdot (\nabla \mathcal{L})^2\]</span> <span class="math display">\[ l_{t+1} = \alpha \cdot \frac{\sqrt{1 - \beta_v^p}}{1 - \beta_m^p} \]</span> <span class="math display">\[ W_{t+1} = W_t - l_{t+1} \frac{m_{t+1}}{\sqrt{v_{t+1}} + \epsilon} \]</span></td>
+                    </tr>
+                    </tbody>
+                    </table>
                     <p>Where <span class="math inline">\(p\)</span> is the current epoch, that is 1 + the number of passes through the dataset.</p>
                     <h3 id="conjugate-gradients">Conjugate Gradients</h3>
                     <p>The following method tries to estimate the second order derivative of the loss function. This second order derivative - the Hessian <span class="math inline">\(H\)</span> - is most ably used in Newton's algorithm (<span class="math inline">\(W_{t+1} = W_t - \alpha \cdot H^{-1}\nabla \mathcal{L}\)</span>) and gives extremely useful information about the curvature of the loss function. Properly estimating the Hessian (and its inverse) has been a long time challenging task since the Hessian is composed of <span class="math inline">\(\lvert W \rvert^2\)</span> terms. For more information I'd recommend these papers <span class="citation">[<a href="#ref-dauphin">9</a>–<a href="#ref-martens">11</a>]</span> and chapter 8.2 of the deep learning book <span class="citation">[<a href="#ref-dlbook">12</a>]</span>. The following description was inspired by Wright and Nocedal <span class="citation">[<a href="#ref-optibook">13</a>]</span>.</p>
                     <p><span class="math display">\[ p_{t+1} = \beta_{t+1} \cdot p_t - \nabla \mathcal{L} \]</span> <span class="math display">\[ W_{t+1} = \alpha \cdot p_{t+1} \]</span></p>
                     <p>Where <span class="math inline">\(\beta_{t+1}\)</span> can be computed by the Fletcher-Rieves or Hestenes-Stiefel methods. (Notice the subscript of the gradients.)</p>
-                    <h4 id="fletcher-rieves">Fletcher-Rieves</h4>
-                    <p><span class="math display">\[ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot \nabla_{W_{t}}\mathcal{L}}{\nabla_{W_{t-1}}\mathcal{L}^T \cdot \nabla_{W_{t-1}}\mathcal{L}} \]</span></p>
-                    <h4 id="hestenes-stiefel">Hestenes-Stiefel</h4>
-                    <p><span class="math display">\[ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot (\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})}{(\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})^T \cdot p_t} \]</span></p>
+                    <table>
+                    <caption>Compute the Non-linear Conjugate Direction</caption>
+                    <colgroup>
+                    <col width="43%" />
+                    <col width="56%" />
+                    </colgroup>
+                    <thead>
+                    <tr class="header">
+                    <th>Fletcher-Rieves</th>
+                    <th>Hestenes-Stiefel</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr class="odd">
+                    <td><span class="math display">\[ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot \nabla_{W_{t}}\mathcal{L}}{\nabla_{W_{t-1}}\mathcal{L}^T \cdot \nabla_{W_{t-1}}\mathcal{L}} \]</span></td>
+                    <td><span class="math display">\[ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot (\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})}{(\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})^T \cdot p_t} \]</span></td>
+                    </tr>
+                    </tbody>
+                    </table>
                     <h1 id="beyond-sequentiallity">Beyond Sequentiallity</h1>
                     <!--
                     * Introduce sync and async, nsync

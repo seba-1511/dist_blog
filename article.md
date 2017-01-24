@@ -42,13 +42,11 @@ As we will now see, several variants of the gradient descent algorithm exist. Th
 ### Adding Momentum
 Momentum techniques simply keep track of a weighted average of previous updates, and apply it to the current one. This is akin to the momentum gained by a ball rolling downhill. In the following formulas, $\mu$ is the momentum parameter - how much previous updates we want to include in the current one.
 
-#### Momentum
-$$ v_{t+1} = \mu \cdot v_t + \alpha \cdot \nabla \mathcal{L}$$
-$$ W_{t+1} = W_t - v_{t+1} $$
+Momentum | Nesterov Momentum or Accelerated Gradient @nesterov
+-------------------------- | ----------------------------------------------------
+$$ v_{t+1} = \mu \cdot v_t + \alpha \cdot \nabla \mathcal{L}$$ $$ W_{t+1} = W_t - v_{t+1} $$ | $$ v_{t+1} = \mu \cdot (\mu \cdot v + \alpha \cdot \nabla \mathcal{L}) + \alpha \cdot \nabla \mathcal{L} $$ $$ W_{t+1} = W_t - v_{t+1} $$
 
-#### Nesterov Momentum or Accelerated Gradient @nesterov
-$$ v_{t+1} = \mu \cdot (\mu \cdot v + \alpha \cdot \nabla \mathcal{L}) + \alpha \cdot \nabla \mathcal{L} $$
-$$ W_{t+1} = W_t - v_{t+1} $$
+Table: Momentum Flavors of SGD
 
 Nesterov's accelerated gradient adds *momentum to the momentum* in an attempt to look ahead for what is coming. 
 
@@ -59,25 +57,13 @@ Finding good learning rates can be an expensive process, and a skill often deeme
 In the following formulas, $\epsilon$ is a constant to ensure numerical stability, and $\mu$ is the decay constant of the algorithm, how fast we decrease the learning rate as we converge.
 \end{note}
 
-#### Adagrad @adagrad
-$$ s_{t+1} = s_t + (\nabla \mathcal{L})^2 $$
-$$ W_{t+1} = W_t - \frac{\alpha \cdot \nabla \mathcal{L}}{\sqrt{s_{t+1} + \epsilon}}$$
+ Adagrad @adagrad | RMSProp @rmsprop
+-----------------------------------|------------------------------------------
+$$ s_{t+1} = s_t + (\nabla \mathcal{L})^2 $$ $$ W_{t+1} = W_t - \frac{\alpha \cdot \nabla \mathcal{L}}{\sqrt{s_{t+1} + \epsilon}}$$ |  $$ s_{t+1} = \mu \cdot s_t + (1 - \mu) \cdot (\nabla \mathcal{L})^2 $$ $$ W_{t+1} = W_t - \frac{\alpha \cdot \nabla \mathcal{L}}{\sqrt{s_{t+1} + \epsilon} + \epsilon}$$
+**Adadelta @adadelta** | **Adam @adam**
+$$ \lambda_{t+1} = \lambda_t \cdot \mu + (1 - \mu) \cdot (\nabla \mathcal{L})^2 $$ $$ \Delta W_{t+1} = \nabla \mathcal{L} \cdot \sqrt{\frac{\delta_{t} + \epsilon}{\lambda_{t+1} + \epsilon}}$$ $$ \delta_{t+1} = \delta_t \cdot \mu + (1 - \mu) \cdot (\Delta W_{t+1})^2 $$ $$ W_{t+1} = W_t - \Delta W_{t+1}$$ | $$ m_{t+1} = m_t \cdot \beta_m + (1 - \beta_m) \cdot \nabla \mathcal{L}$$ $$ v_{t+1} = v_t \cdot \beta_v + (1 - \beta_v) \cdot (\nabla \mathcal{L})^2$$ $$ l_{t+1} = \alpha \cdot \frac{\sqrt{1 - \beta_v^p}}{1 - \beta_m^p} $$ $$ W_{t+1} = W_t - l_{t+1} \frac{m_{t+1}}{\sqrt{v_{t+1}} + \epsilon} $$
 
-#### RMSProp @rmsprop
-$$ s_{t+1} = \mu \cdot s_t + (1 - \mu) \cdot (\nabla \mathcal{L})^2 $$
-$$ W_{t+1} = W_t - \frac{\alpha \cdot \nabla \mathcal{L}}{\sqrt{s_{t+1} + \epsilon} + \epsilon}$$
-
-#### Adadelta @adadelta
-$$ \lambda_{t+1} = \lambda_t \cdot \mu + (1 - \mu) \cdot (\nabla \mathcal{L})^2 $$
-$$ \Delta W_{t+1} = \nabla \mathcal{L} \cdot \sqrt{\frac{\delta_{t} + \epsilon}{\lambda_{t+1} + \epsilon}}$$
-$$ \delta_{t+1} = \delta_t \cdot \mu + (1 - \mu) \cdot (\Delta W_{t+1})^2 $$
-$$ W_{t+1} = W_t - \Delta W_{t+1}$$
-
-#### Adam @adam
-$$ m_{t+1} = m_t \cdot \beta_m + (1 - \beta_m) \cdot \nabla \mathcal{L}$$
-$$ v_{t+1} = v_t \cdot \beta_v + (1 - \beta_v) \cdot (\nabla \mathcal{L})^2$$
-$$ l_{t+1} = \alpha \cdot \frac{\sqrt{1 - \beta_v^p}}{1 - \beta_m^p} $$
-$$ W_{t+1} = W_t - l_{t+1} \frac{m_{t+1}}{\sqrt{v_{t+1}} + \epsilon} $$
+Table: Adaptively Scaling the Learning Rate
 
 Where $p$ is the current epoch, that is 1 + the number of passes through the dataset.
 
@@ -89,11 +75,11 @@ $$ W_{t+1} = \alpha \cdot p_{t+1} $$
 
 Where $\beta_{t+1}$ can be computed by the Fletcher-Rieves or Hestenes-Stiefel methods. (Notice the subscript of the gradients.)
 
-#### Fletcher-Rieves
-$$ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot \nabla_{W_{t}}\mathcal{L}}{\nabla_{W_{t-1}}\mathcal{L}^T \cdot \nabla_{W_{t-1}}\mathcal{L}} $$
+Fletcher-Rieves | Hestenes-Stiefel
+--------------------------------- | -------------------------------------------
+$$ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot \nabla_{W_{t}}\mathcal{L}}{\nabla_{W_{t-1}}\mathcal{L}^T \cdot \nabla_{W_{t-1}}\mathcal{L}} $$ |  $$ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot (\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})}{(\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})^T \cdot p_t} $$
 
-#### Hestenes-Stiefel
-$$ \beta_{t+1} = \frac{\nabla_{W_{t}}\mathcal{L}^T \cdot (\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})}{(\nabla_{W_{t}}\mathcal{L} - \nabla_{W_{t-1}}\mathcal{L})^T \cdot p_t} $$
+Table: Compute the Non-linear Conjugate Direction
 
 
 
