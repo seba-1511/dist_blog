@@ -44,7 +44,7 @@ Momentum techniques simply keep track of a weighted average of previous updates,
 
 Momentum | Nesterov Momentum or Accelerated Gradient @nesterov
 -------------------------- | ----------------------------------------------------
-$$ v_{t+1} = \mu \cdot v_t + \alpha \cdot \nabla \mathcal{L}$$ $$ W_{t+1} = W_t - v_{t+1} $$ | $$ v_{t+1} = \mu \cdot (\mu \cdot v + \alpha \cdot \nabla \mathcal{L}) + \alpha \cdot \nabla \mathcal{L} $$ $$ W_{t+1} = W_t - v_{t+1} $$
+$$ v_{t+1} = \mu \cdot v_t + \alpha \cdot \nabla \mathcal{L}$$ $$ W_{t+1} = W_t - v_{t+1} $$ | $$ v_{t+1} = \alpha \cdot (\mu + 1) \cdot \nabla \mathcal{L} - \mu^2 \cdot v_t$$ $$ W_{t+1} = W_t - v_{t+1} $$
 
 Table: Momentum Flavors of SGD
 
